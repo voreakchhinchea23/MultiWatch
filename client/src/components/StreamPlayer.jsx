@@ -143,8 +143,8 @@ export default function StreamPlayer({
                   LIVE {viewerCount && `(${formatViewerCount(viewerCount)})`}
                 </span>
               ) : (
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/20 text-white/80 backdrop-blur-sm flex-shrink-0">
-                  OFFLINE
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 backdrop-blur-sm flex-shrink-0 font-medium">
+                  {videoId ? 'LATEST STREAM' : 'OFFLINE'}
                 </span>
               )}
             </div>

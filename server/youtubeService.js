@@ -5,7 +5,7 @@ const http = require('http');
 const cache = new Map();
 const CACHE_TTL = 20 * 1000; // 20 seconds
 
-// Known default channel ID mapping for instant resolution
+// Known default channel ID mapping
 const KNOWN_CHANNEL_IDS = {
   '@yaboiaddi': 'UCGXgBHuodxLPeB_ZMFjSuNg',
   '@mmegamind': 'UC4HYzwoCrQnisp76SfKK_bQ',
@@ -143,12 +143,12 @@ async function getChannelLiveInfo(rawIdentifier) {
     const channelId = await resolveChannelId(identifier);
     let isLive = false;
     let liveVideoId = null;
-    let title = identifier.replace(/^@/, '');
+    let liveTitle = '';
     let channelName = identifier.replace(/^@/, '');
     let channelAvatar = '';
     let viewerCount = null;
 
-    // Step 1: Query YouTube RSS Feed
+    // Step 1: Query YouTube RSS Feed to get latest video/stream ID & title
     let latestVideoId = null;
     let latestTitle = '';
     if (channelId) {
@@ -170,7 +170,7 @@ async function getChannelLiveInfo(rawIdentifier) {
       } catch (rssErr) {}
     }
 
-    // Step 2: Query /live endpoint
+    // Step 2: Query /live endpoint to detect active streaming status
     try {
       const liveRes = await fetchUrl(`https://www.youtube.com/${identifier}/live`);
       const html = liveRes.body;
@@ -191,7 +191,7 @@ async function getChannelLiveInfo(rawIdentifier) {
             if ((isLiveNow || isLiveDetails) && !hasEnd) {
               isLive = true;
               liveVideoId = details?.videoId || latestVideoId;
-              title = details?.title || latestTitle || title;
+              liveTitle = details?.title || latestTitle;
               if (details?.author) channelName = details.author;
               viewerCount = micro?.viewerCount || details?.viewCount || null;
             }
@@ -199,12 +199,7 @@ async function getChannelLiveInfo(rawIdentifier) {
         }
       }
 
-      // If /live had a canonical video URL, verify it
-      const canonical = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/);
-      if (canonical && !liveVideoId) {
-        liveVideoId = canonical[1];
-      }
-
+      // Check avatar from html
       const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
                           html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
       if (avatarMatch) {
@@ -212,14 +207,15 @@ async function getChannelLiveInfo(rawIdentifier) {
       }
     } catch(e){}
 
-    // Fallback videoId from RSS if available
-    const finalVideoId = liveVideoId || latestVideoId || null;
+    // Final video ID: If live, use live video ID; if offline, use the latest past live stream / video!
+    const finalVideoId = isLive ? (liveVideoId || latestVideoId) : latestVideoId;
+    const finalTitle = isLive ? (liveTitle || latestTitle) : (latestTitle || channelName);
 
     const result = {
       identifier,
-      isLive: isLive || (identifier.toLowerCase() === '@yaboiaddi'), // Guarantee Addi live stream connection
+      isLive,
       videoId: finalVideoId,
-      title: isLive ? (title || latestTitle) : channelName,
+      title: finalTitle,
       channelName,
       channelAvatar: channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(identifier)}`,
       channelId: channelId || '',
