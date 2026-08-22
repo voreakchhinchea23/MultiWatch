@@ -22,6 +22,53 @@ const KNOWN_CHANNEL_IDS = {
 };
 
 /**
+ * Robust JSON Extractor using balanced brace parser
+ */
+function extractJsonFromHtml(html, variableName) {
+  if (!html) return null;
+  const index = html.indexOf(variableName);
+  if (index === -1) return null;
+  const equalIndex = html.indexOf('=', index);
+  if (equalIndex === -1) return null;
+  let braceIndex = html.indexOf('{', equalIndex);
+  if (braceIndex === -1 || braceIndex - equalIndex > 20) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = braceIndex; i < html.length; i++) {
+    const char = html[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === '{') depth++;
+      else if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          try {
+            return JSON.parse(html.substring(braceIndex, i + 1));
+          } catch (e) {
+            return null;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Fetch a URL following redirects with browser headers
  */
 function fetchUrl(url, redirectCount = 0) {
@@ -148,7 +195,7 @@ async function getChannelLiveInfo(rawIdentifier) {
     let channelAvatar = '';
     let viewerCount = null;
 
-    // Step 1: Query YouTube RSS Feed
+    // Step 1: Query YouTube RSS Feed for latest video ID
     let latestVideoId = null;
     if (channelId) {
       try {
@@ -164,19 +211,16 @@ async function getChannelLiveInfo(rawIdentifier) {
       } catch (rssErr) {}
     }
 
-    // Step 2: Validate live status via watch page
+    // Step 2: Validate live status via watch page using balanced parser
     if (latestVideoId) {
       try {
-        const watchRes = await fetchUrl(`https://www.youtube.com/watch?v=${latestVideoId}&bpctr=${Math.floor(Date.now()/1000)}`);
+        const watchRes = await fetchUrl(`https://www.youtube.com/watch?v=${latestVideoId}`);
         const html = watchRes.body;
-        const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
-                            html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
+        const player = extractJsonFromHtml(html, 'ytInitialPlayerResponse');
 
-        if (playerMatch) {
-          const resp = JSON.parse(playerMatch[1]);
-          const details = resp.videoDetails;
-          const micro = resp.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
-
+        if (player) {
+          const details = player.videoDetails;
+          const micro = player.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
           const isLiveNow = micro?.isLiveNow === true;
           const isLiveDetails = details?.isLive === true;
           const hasEnd = !!micro?.endTimestamp;
@@ -200,14 +244,11 @@ async function getChannelLiveInfo(rawIdentifier) {
       try {
         const liveRes = await fetchUrl(`https://www.youtube.com/${identifier}/live`);
         const html = liveRes.body;
-        const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
-                            html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
+        const player = extractJsonFromHtml(html, 'ytInitialPlayerResponse');
 
-        if (playerMatch) {
-          const resp = JSON.parse(playerMatch[1]);
-          const details = resp.videoDetails;
-          const micro = resp.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
-
+        if (player) {
+          const details = player.videoDetails;
+          const micro = player.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
           const isLiveNow = micro?.isLiveNow === true;
           const isLiveDetails = details?.isLive === true;
           const hasEnd = !!micro?.endTimestamp;
@@ -221,6 +262,14 @@ async function getChannelLiveInfo(rawIdentifier) {
             if (details?.thumbnail?.thumbnails?.length > 0) {
               channelAvatar = details.thumbnail.thumbnails[details.thumbnail.thumbnails.length - 1].url;
             }
+          }
+        }
+
+        if (!channelAvatar) {
+          const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
+                              html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
+          if (avatarMatch) {
+            channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
           }
         }
       } catch (liveErr) {}
