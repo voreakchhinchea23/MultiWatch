@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # MultiWatch 🔴 Live - YouTube Stream & Multi-Viewer
 
 A modern, high-performance web application built with **ReactJS**, **Tailwind CSS**, and **Express** to watch real-time YouTube live streams with synchronized live chat across multiple channels simultaneously.
@@ -69,3 +70,7 @@ Open **[http://localhost:5000](http://localhost:5000)** in your browser.
 - **Frontend**: React 18, Vite, Tailwind CSS, Lucide React
 - **Backend**: Node.js, Express, HTTPS metadata scraper & in-memory cache
 - **Embedding**: Official YouTube Iframe Player & Live Chat API
+=======
+# MultiWatch
+A project create in order to watch multiple streams from YouTube at the same time.
+>>>>>>> 1d7c4d37ea969bb419dbefe97d72970b0d24124a
