@@ -50,8 +50,11 @@ export default function StreamPlayer({
   let embedUrl = '';
   if (videoId) {
     embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muteParam}&enablejsapi=1&origin=${encodeURIComponent(currentOrigin)}`;
-  } else if (channelId && isLive) {
-    embedUrl = `https://www.youtube-nocookie.com/embed/live_stream?channel=${channelId}&autoplay=1&mute=${muteParam}&enablejsapi=1`;
+  } else if (channelId || channel.channelId) {
+    const cId = channelId || channel.channelId;
+    embedUrl = `https://www.youtube-nocookie.com/embed/live_stream?channel=${cId}&autoplay=1&mute=${muteParam}&enablejsapi=1`;
+  } else if (channel.handle) {
+    embedUrl = `https://www.youtube-nocookie.com/embed/live_stream?channel=${channel.handle.replace('@', '')}&autoplay=1&mute=${muteParam}&enablejsapi=1`;
   }
 
   // Handle instant volume & mute changes via postMessage without reloading iframe
