@@ -8,25 +8,59 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CHANNELS_FILE = path.join(__dirname, 'channels.json');
 
-// Helper to read channels from JSON file on disk
+const DEFAULT_INITIAL_CHANNELS = [
+  {
+    id: '@yaboiaddi',
+    handle: '@yaboiaddi',
+    name: 'YaBoi Addi',
+    category: 'Gaming / Streamer',
+    description: 'Gaming live streamer & entertainer',
+    isDefault: true
+  },
+  {
+    id: '@MMegamind',
+    handle: '@MMegamind',
+    name: 'M.Megamind',
+    category: 'Gaming / Entertainment',
+    description: 'Gaming, reactions & community entertainment',
+    isDefault: true
+  },
+  {
+    id: '@LofiGirl',
+    handle: '@LofiGirl',
+    name: 'Lofi Girl',
+    category: 'Music / 24/7 Radio',
+    description: '24/7 Lofi Hip Hop live streams to study/relax',
+    isDefault: true
+  }
+];
+
+let inMemoryChannels = [...DEFAULT_INITIAL_CHANNELS];
+
+// Helper to read channels from JSON file on disk (with fallback)
 function readChannelsFromFile() {
   try {
     if (fs.existsSync(CHANNELS_FILE)) {
       const data = fs.readFileSync(CHANNELS_FILE, 'utf8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        inMemoryChannels = parsed;
+        return parsed;
+      }
     }
   } catch (err) {
-    console.error('Error reading channels.json:', err);
+    console.warn('Reading channels.json (using in-memory fallback):', err.message);
   }
-  return [];
+  return inMemoryChannels;
 }
 
 // Helper to write channels to JSON file on disk
 function writeChannelsToFile(channels) {
+  inMemoryChannels = channels;
   try {
     fs.writeFileSync(CHANNELS_FILE, JSON.stringify(channels, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error writing channels.json:', err);
+    console.warn('Writing channels.json (serverless read-only filesystem):', err.message);
   }
 }
 
@@ -35,16 +69,16 @@ app.use(express.json());
 
 // API: Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), env: process.env.VERCEL ? 'vercel' : 'local' });
 });
 
-// API: Get all saved channels (stored on disk in server/channels.json)
+// API: Get all saved channels
 app.get('/api/channels', (req, res) => {
   const channels = readChannelsFromFile();
   res.json(channels);
 });
 
-// API: Add a new channel to disk
+// API: Add a new channel
 app.post('/api/channels', (req, res) => {
   const newChannel = req.body;
   if (!newChannel || !newChannel.handle) {
@@ -62,7 +96,7 @@ app.post('/api/channels', (req, res) => {
   res.json({ success: true, channels });
 });
 
-// API: Delete a channel from disk
+// API: Delete a channel
 app.delete('/api/channels/:handle', (req, res) => {
   const handle = decodeURIComponent(req.params.handle);
   let channels = readChannelsFromFile();
@@ -125,14 +159,20 @@ app.get('*', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`===========================================`);
-  console.log(`🚀 MultiWatch Server listening on port ${PORT}`);
-  console.log(`💾 Storing channels in: ${CHANNELS_FILE}`);
-  console.log(`📡 API endpoints:`);
-  console.log(`   GET  http://localhost:${PORT}/api/channels`);
-  console.log(`   POST http://localhost:${PORT}/api/channels`);
-  console.log(`   GET  http://localhost:${PORT}/api/live/check?handle=@MMegamind`);
-  console.log(`   POST http://localhost:${PORT}/api/live/batch`);
-  console.log(`===========================================`);
-});
+// Export app for Vercel serverless functions
+module.exports = app;
+
+// Start standalone HTTP server when run directly (local / Node)
+if (require.main === module && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`===========================================`);
+    console.log(`🚀 MultiWatch Server listening on port ${PORT}`);
+    console.log(`💾 Storing channels in: ${CHANNELS_FILE}`);
+    console.log(`📡 API endpoints:`);
+    console.log(`   GET  http://localhost:${PORT}/api/channels`);
+    console.log(`   POST http://localhost:${PORT}/api/channels`);
+    console.log(`   GET  http://localhost:${PORT}/api/live/check?handle=@MMegamind`);
+    console.log(`   POST http://localhost:${PORT}/api/live/batch`);
+    console.log(`===========================================`);
+  });
+}
