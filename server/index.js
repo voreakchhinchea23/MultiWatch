@@ -12,8 +12,8 @@ const DEFAULT_INITIAL_CHANNELS = [
   {
     id: "@yaboiaddi",
     handle: "@yaboiaddi",
-    name: "Addi - អែតឌី",
-    category: "Khmer Streamer",
+    name: "YaBoi Addi",
+    category: "Gaming / Streamer",
     description: "Popular Khmer gaming live streamer",
     isDefault: true,
     channelId: "UCGXgBHuodxLPeB_ZMFjSuNg"
@@ -22,7 +22,7 @@ const DEFAULT_INITIAL_CHANNELS = [
     id: "@MMegamind",
     handle: "@MMegamind",
     name: "M.Megamind",
-    category: "Khmer Streamer",
+    category: "Gaming & Entertainment",
     description: "Gaming, entertainment & reactions",
     isDefault: true,
     channelId: "UC4HYzwoCrQnisp76SfKK_bQ"
@@ -30,45 +30,45 @@ const DEFAULT_INITIAL_CHANNELS = [
   {
     id: "@lyvisss",
     handle: "@lyvisss",
-    name: "LyVisss",
-    category: "Khmer Streamer",
-    description: "Gaming live stream",
+    name: "Lyviss",
+    category: "Gaming",
+    description: "Khmer gaming & entertainment live stream",
     isDefault: true,
     channelId: "UCymNvh7IQDkL1TLi3FdgIUQ"
   },
   {
     id: "@Pechannie",
     handle: "@Pechannie",
-    name: "Annie",
-    category: "Khmer Streamer",
-    description: "Live gaming & chill",
+    name: "Pechannie",
+    category: "Streamer",
+    description: "Gaming & lifestyle streams",
     isDefault: true,
     channelId: "UC8gLykz6r56Pk-buHS48S-w"
   },
   {
     id: "@KnoY95Tv",
     handle: "@KnoY95Tv",
-    name: "KnoY95 Tv",
-    category: "Khmer Streamer",
-    description: "Entertainment & stream",
+    name: "KnoY 95 Tv",
+    category: "Entertainment",
+    description: "Entertainment & gaming live streamer",
     isDefault: true,
     channelId: "UC-9oxn3YNVIpHABvt_eaXrA"
   },
   {
     id: "@KhmerGamer",
     handle: "@KhmerGamer",
-    name: "TK KalongBek",
-    category: "Khmer Streamer",
-    description: "7 Days to Die & gaming",
+    name: "Khmer Gamer",
+    category: "Gaming",
+    description: "Survival gaming, 7 Days to Die & adventures",
     isDefault: true,
     channelId: "UC6Qvs3rKLF2IA1TVEeHn08Q"
   },
   {
     id: "@MrKmav",
     handle: "@MrKmav",
-    name: "ds - ឌីអេស",
-    category: "Khmer Streamer",
-    description: "Gaming & automotive entertainment",
+    name: "Mr Kmav",
+    category: "Entertainment",
+    description: "Khmer gaming & lifestyle streamer",
     isDefault: true,
     channelId: "UCsvVMHo3kb3zC_gYLn_IpkQ"
   },
@@ -76,35 +76,35 @@ const DEFAULT_INITIAL_CHANNELS = [
     id: "@noobiegmk",
     handle: "@noobiegmk",
     name: "Noobie GMK",
-    category: "Khmer Streamer",
-    description: "Gaming streams",
+    category: "Gaming",
+    description: "Gaming streamer & entertainment",
     isDefault: true,
     channelId: "UCIw1B8cZ1o3PP1QMvSRG4_w"
   },
   {
     id: "@dsdsds19",
     handle: "@dsdsds19",
-    name: "បងធីខេ Bong TK",
-    category: "Khmer Streamer",
-    description: "Magic Chess & live gaming",
+    name: "Bong TK (dsdsds19)",
+    category: "Gaming",
+    description: "Magic Chess, Mobile Legends & live gaming",
     isDefault: true,
     channelId: "UCoM0QAYjxSNcDR-2TnnYvkA"
   },
   {
-    "id": "@ravenblaze99",
+    id: "@ravenblaze99",
     handle: "@ravenblaze99",
     name: "RavenBlaze",
-    category: "Khmer Streamer",
-    description: "MMORPG & gaming events",
+    category: "MMORPG",
+    description: "MMORPG, JX2 & competitive gaming",
     isDefault: true,
     channelId: "UCnFLGRAn6jXrGDksCO1jEkA"
   },
   {
     id: "@KaKa42official",
     handle: "@KaKa42official",
-    name: "HeyItzPuppies",
-    category: "Khmer Streamer",
-    description: "Fun gaming & lifestyle entertainment",
+    name: "KaKa 42",
+    category: "Entertainment",
+    description: "Gaming & fun community streams",
     isDefault: true,
     channelId: "UC--FHdN6cMHEYLjrYkvY8dQ"
   }

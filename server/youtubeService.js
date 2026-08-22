@@ -108,7 +108,6 @@ async function resolveChannelId(identifier) {
     return KNOWN_CHANNEL_IDS[normalized];
   }
 
-  // Fetch channel page to extract channelId
   try {
     const res = await fetchUrl(`https://www.youtube.com/${identifier}`);
     const chMatch = res.body.match(/<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})">/) ||
@@ -123,38 +122,6 @@ async function resolveChannelId(identifier) {
   }
 
   return null;
-}
-
-/**
- * Check if a specific video ID is currently a live broadcast
- */
-async function checkVideoLiveStatus(videoId) {
-  if (!videoId) return { isLive: false };
-
-  try {
-    const res = await fetchUrl(`https://www.youtube.com/watch?v=${videoId}`);
-    const html = res.body;
-
-    const isLive = html.includes('"isLive":true') ||
-                   html.includes('"isLiveContent":true') ||
-                   html.includes('BADGE_STYLE_TYPE_LIVE_NOW') ||
-                   html.includes('"style":"LIVE"');
-
-    const titleMatch = html.match(/<meta name="title" content="([^"]+)">/) || html.match(/<title>([^<]+)<\/title>/);
-    const authorMatch = html.match(/<link rel="author" href="[^"]*" content="([^"]+)">/) || html.match(/"author":"([^"]+)"/);
-    const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) || html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
-    const viewersMatch = html.match(/"viewCount":\{"runs":\[\{"text":"([0-9,]+)"\}\]/) || html.match(/"runs":\[\{"text":"([0-9,]+)"\},\{"text":" watching"/);
-
-    return {
-      isLive,
-      title: titleMatch ? titleMatch[1].replace(/ - YouTube$/, '').trim() : '',
-      channelName: authorMatch ? authorMatch[1] : '',
-      channelAvatar: avatarMatch ? avatarMatch[1].replace(/\\u0026/g, '&') : '',
-      viewerCount: viewersMatch ? viewersMatch[1] : null
-    };
-  } catch (e) {
-    return { isLive: false };
-  }
 }
 
 /**
@@ -173,121 +140,64 @@ async function getChannelLiveInfo(rawIdentifier) {
   }
 
   try {
-    // If direct video query
-    if (identifier.startsWith('video:')) {
-      const vid = identifier.split(':')[1];
-      const videoStatus = await checkVideoLiveStatus(vid);
-      const result = {
-        identifier,
-        isLive: videoStatus.isLive,
-        videoId: vid,
-        title: videoStatus.title || identifier,
-        channelName: videoStatus.channelName || identifier,
-        channelAvatar: videoStatus.channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(identifier)}`,
-        channelId: '',
-        viewerCount: videoStatus.viewerCount,
-        thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
-        liveUrl: `https://www.youtube.com/watch?v=${vid}`,
-        chatUrl: `https://www.youtube.com/live_chat?v=${vid}`,
-        updatedAt: new Date().toISOString()
-      };
-      cache.set(identifier, { timestamp: Date.now(), data: result });
-      return result;
-    }
-
-    // Step 1: Resolve Channel ID
-    const channelId = await resolveChannelId(identifier);
-
-    // Step 2: Fetch official YouTube RSS Feed (100% reliable across datacenters)
-    let latestVideoId = null;
-    let latestTitle = '';
-    let channelTitle = identifier.replace(/^@/, '');
-
-    if (channelId) {
-      try {
-        const rssRes = await fetchUrl(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
-        const xml = rssRes.body;
-
-        const authorMatch = xml.match(/<name>([^<]+)<\/name>/);
-        if (authorMatch) channelTitle = authorMatch[1].trim();
-
-        const videoIdMatch = xml.match(/<yt:videoId>([a-zA-Z0-9_-]{11})<\/yt:videoId>/);
-        if (videoIdMatch) latestVideoId = videoIdMatch[1];
-
-        const titleMatch = xml.match(/<media:title>([^<]+)<\/media:title>/) || xml.match(/<title>([^<]+)<\/title>/);
-        if (titleMatch) latestTitle = titleMatch[1].trim();
-      } catch (rssErr) {
-        console.warn(`RSS fetch error for ${channelId}:`, rssErr.message);
-      }
-    }
-
-    // Step 3: Check live stream endpoint
     let isLive = false;
     let liveVideoId = null;
-    let viewerCount = null;
+    let liveTitle = '';
+    let channelName = identifier.replace(/^@/, '');
     let channelAvatar = '';
+    let viewerCount = null;
+    const channelId = await resolveChannelId(identifier);
 
-    // Check direct /live endpoint
-    try {
-      const liveRes = await fetchUrl(`https://www.youtube.com/${identifier}/live`);
-      const html = liveRes.body;
+    // Fetch the /live endpoint
+    const liveRes = await fetchUrl(`https://www.youtube.com/${identifier}/live`);
+    const html = liveRes.body;
 
-      const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
-                          html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
+    const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
+                        html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
 
-      if (playerMatch) {
-        try {
-          const playerResp = JSON.parse(playerMatch[1]);
-          const details = playerResp.videoDetails;
-          const microformat = playerResp.microformat?.playerMicroformatRenderer;
+    if (playerMatch) {
+      try {
+        const playerResp = JSON.parse(playerMatch[1]);
+        const details = playerResp.videoDetails;
+        const microformat = playerResp.microformat?.playerMicroformatRenderer;
 
-          if (details) {
-            // Verify genuine live status
-            if (details.isLive || details.isLiveContent || microformat?.liveBroadcastDetails?.isLiveNow) {
-              isLive = true;
-              liveVideoId = details.videoId;
-              latestTitle = details.title || latestTitle;
-              channelTitle = details.author || channelTitle;
-              viewerCount = details.viewCount || microformat?.liveBroadcastDetails?.viewerCount;
-            }
-          }
-        } catch (e) {}
-      }
+        const isLiveNow = microformat?.liveBroadcastDetails?.isLiveNow === true;
+        const isLiveDetails = details?.isLive === true;
+        const hasEndTimestamp = !!microformat?.liveBroadcastDetails?.endTimestamp;
+        const isPostLive = html.includes('"isPostLive":true') || html.includes('"isPostLiveDvr":true');
 
-      // Check avatar from html
-      const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
-                          html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
-      if (avatarMatch) {
-        channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
-      }
-    } catch (e) {}
-
-    // If live endpoint didn't give videoId, test the latest RSS video
-    if (!liveVideoId && latestVideoId) {
-      const status = await checkVideoLiveStatus(latestVideoId);
-      if (status.isLive) {
-        isLive = true;
-        liveVideoId = latestVideoId;
-        if (status.title) latestTitle = status.title;
-        if (status.viewerCount) viewerCount = status.viewerCount;
-        if (status.channelAvatar && !channelAvatar) channelAvatar = status.channelAvatar;
+        // STRICT LIVE CHECK: Must be actively streaming right now and not an ended/archived broadcast
+        if ((isLiveNow || isLiveDetails) && !hasEndTimestamp && !isPostLive) {
+          isLive = true;
+          liveVideoId = details.videoId;
+          liveTitle = details.title || '';
+          if (details.author) channelName = details.author;
+          viewerCount = microformat?.liveBroadcastDetails?.viewerCount || details.viewCount || null;
+        }
+      } catch (e) {
+        console.warn('Error parsing live player response:', e.message);
       }
     }
 
-    const finalVideoId = isLive ? liveVideoId : (latestVideoId || null);
+    // Extract avatar
+    const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
+                        html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
+    if (avatarMatch) {
+      channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
+    }
 
     const result = {
       identifier,
       isLive,
-      videoId: finalVideoId,
-      title: latestTitle || (isLive ? `${channelTitle} Live Stream` : channelTitle),
-      channelName: channelTitle,
+      videoId: isLive ? liveVideoId : null,
+      title: isLive ? liveTitle : channelName,
+      channelName,
       channelAvatar: channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(identifier)}`,
       channelId: channelId || '',
       viewerCount: isLive ? viewerCount : null,
-      thumbnail: finalVideoId ? `https://i.ytimg.com/vi/${finalVideoId}/hqdefault.jpg` : '',
-      liveUrl: finalVideoId ? `https://www.youtube.com/watch?v=${finalVideoId}` : `https://www.youtube.com/${identifier}`,
-      chatUrl: (isLive && finalVideoId) ? `https://www.youtube.com/live_chat?v=${finalVideoId}` : '',
+      thumbnail: (isLive && liveVideoId) ? `https://i.ytimg.com/vi/${liveVideoId}/hqdefault.jpg` : '',
+      liveUrl: (isLive && liveVideoId) ? `https://www.youtube.com/watch?v=${liveVideoId}` : `https://www.youtube.com/${identifier}`,
+      chatUrl: (isLive && liveVideoId) ? `https://www.youtube.com/live_chat?v=${liveVideoId}` : '',
       updatedAt: new Date().toISOString()
     };
 

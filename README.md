@@ -1,76 +1,153 @@
-<<<<<<< HEAD
-# MultiWatch 🔴 Live - YouTube Stream & Multi-Viewer
+# 🎮 MultiWatch - Real-Time YouTube Multi-Stream Viewer
 
-A modern, high-performance web application built with **ReactJS**, **Tailwind CSS**, and **Express** to watch real-time YouTube live streams with synchronized live chat across multiple channels simultaneously.
+<div align="center">
 
-Inspired by [loffystore.com/live](https://loffystore.com/live).
+![MultiWatch Banner](https://img.shields.io/badge/MultiWatch-Live%20Streaming-red?style=for-the-badge&logo=youtube)
+![React](https://img.shields.io/badge/React%2018-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
+
+**Watch multiple YouTube live streams concurrently in customizable split-screen layouts with synchronized dark live chat, real-time live detection, and an integrated multi-stream audio mixer.**
+
+🌐 **Live Demo:** [https://multi-watches.vercel.app](https://multi-watches.vercel.app)
+
+</div>
 
 ---
 
 ## ✨ Features
 
-- **Live Stream Auto-Detection**: Real-time status detection for YouTube handles (`@username`), channel URLs, or live broadcast links.
-- **Pre-configured Channels**:
-  - **@yaboiaddi** (YaBoi Addi) - Live gaming & entertainment
-  - **@MMegamind** (M.Megamind) - Community gaming & entertainment
-  - **@LofiGirl** - 24/7 Lofi hip hop radio
-- **Multi-Stream Watch Room**:
-  - Flexible layout modes: **1x1 Single Focus**, **Split Screen (2x1)**, **Quad Grid (2x2)**, and **Dynamic Multi-Grid**
-  - Audio focus controller (Focus/Unfocus single stream, swap streams)
-  - Quick reload & full screen
-- **Real-Time Live Chat Embed**:
-  - Synchronized YouTube Live Chat iframe for any active livestream
-  - Multi-chat tabs to switch between channel discussions
-  - One-click pop-out chat window
-- **Dynamic Channel Management**:
-  - Add any YouTube channel by `@handle`, channel link, or video URL
-  - Instant live validation preview with channel avatar and stream title
-  - Persistent custom channels saved in `localStorage`
-- **Modern Cyberpunk/Gaming UI**:
-  - Dark glassmorphism panels, glowing neon accents, pulsating live indicators
-  - Fully responsive across desktop, tablet, and mobile devices
+- 🔴 **Real-Time Live Stream Auto-Detection**: Instant live broadcast status resolution without requiring YouTube API keys or quota limits.
+- 🎚️ **Individual Stream Volume Sliders & Audio Mixer**:
+  - Fine-tune volume levels (0% – 100%) for each stream independently.
+  - **"Chill Mode" Preset**: Automatically sets your primary gaming stream to 100% and softens background music/lofi streams to 20%.
+  - Global Mute / Unmute and Audio Focus.
+- 🖥️ **Loffy Store-style Stage Layout**:
+  - **Stage View**: 1 Big primary main screen on top with sub-screens in a bottom row.
+  - **Grid View**: Equal split responsive multi-stream layout.
+  - **1-Click "Make Main"**: Swap any background stream into the primary stage instantly.
+- 💬 **Dark Mode Embedded Live Chat**:
+  - Native YouTube dark live chat side-panel with channel switcher pills.
+  - 1-click popout window mode.
+- ➕ **Dynamic Channel Manager**:
+  - Add any YouTube channel by URL, `@handle`, or Channel ID.
+  - Persistent storage in both browser `localStorage` and `channels.json`.
+- 🎨 **Modern Dark Cyberpunk Aesthetic**: Glassmorphism cards, glowing pulse indicators, smooth hover animations, and responsive mobile-to-desktop design.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Local Development)
 
-### 1. Install Dependencies
+### Prerequisites
+- **Node.js**: v18.0.0 or later
+- **NPM**: v9.0.0 or later
+
+### Installation
+
 ```bash
-# In project root:
+# Clone the repository
+git clone https://github.com/voreakchhinchea23/MultiWatch.git
+
+# Navigate into project directory
+cd MultiWatch
+
+# Install all dependencies (root and client workspaces)
 npm install
-npm --prefix client install
 ```
 
-### 2. Run in Development Mode
-Starts both backend API (`port 5000`) and Vite dev server (`port 3000`) concurrently:
+### Running Locally
+
 ```bash
+# Start both backend server (Port 5000) and frontend client (Port 3000)
 npm run dev
 ```
+
 Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-### 3. Run in Production Mode
-```bash
-npm run build
-npm start
+---
+
+## 📁 Project Architecture
+
 ```
-Open **[http://localhost:5000](http://localhost:5000)** in your browser.
+MultiWatch/
+├── api/                     # Vercel Serverless Function entry point
+│   └── index.js
+├── client/                  # React + Vite Frontend
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx            # Top branding & global search
+│   │   │   ├── ChannelSelector.jsx   # Channel grid & live filters
+│   │   │   ├── ChannelCard.jsx       # Stream card with status badge
+│   │   │   ├── MultiStreamViewer.jsx # Multi-stream stage & mixer
+│   │   │   ├── StreamPlayer.jsx      # Video player with volume controls
+│   │   │   ├── LiveChatPanel.jsx     # Dark mode YouTube live chat
+│   │   │   ├── AddChannelModal.jsx   # Add custom channels modal
+│   │   │   └── Footer.jsx            # Footer
+│   │   ├── utils/
+│   │   │   └── storage.js            # Storage & channel defaults
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   └── package.json
+├── server/                  # Express Backend & YouTube Scraper
+│   ├── index.js             # Express API Server
+│   ├── youtubeService.js    # Strict YouTube Live Scraper Engine
+│   └── channels.json        # Saved channels database
+├── package.json             # Root NPM workspaces config
+├── vercel.json              # Vercel deployment routing config
+└── README.md
+```
 
 ---
 
-## 📡 API Endpoints
+## 📡 API Reference
 
-- `GET /api/featured` - Get preconfigured featured channels
-- `GET /api/live/check?handle=@yaboiaddi` - Check live status & get metadata for a channel
-- `POST /api/live/batch` - Batch check live status for multiple handles with 30s cache
+### 1. Check Channel Live Status
+```http
+GET /api/live/check?handle=@yaboiaddi
+```
+**Response:**
+```json
+{
+  "identifier": "@yaboiaddi",
+  "isLive": true,
+  "videoId": "UrXjI1k9UFk",
+  "title": "គ្នាលេងៗ",
+  "channelName": "YaBoi Addi",
+  "viewerCount": "2042",
+  "thumbnail": "https://i.ytimg.com/vi/UrXjI1k9UFk/hqdefault.jpg",
+  "liveUrl": "https://www.youtube.com/watch?v=UrXjI1k9UFk",
+  "chatUrl": "https://www.youtube.com/live_chat?v=UrXjI1k9UFk"
+}
+```
+
+### 2. Batch Check Multiple Channels
+```http
+POST /api/live/batch
+Content-Type: application/json
+
+{
+  "handles": ["@yaboiaddi", "@MMegamind", "@ravenblaze99"]
+}
+```
+
+### 3. Manage Saved Channels
+- `GET /api/channels` - List all saved channels
+- `POST /api/channels` - Add a new channel
+- `DELETE /api/channels/:handle` - Remove a channel
 
 ---
 
-## 🛠️ Tech Stack
+## 🚢 Deploy to Vercel
 
-- **Frontend**: React 18, Vite, Tailwind CSS, Lucide React
-- **Backend**: Node.js, Express, HTTPS metadata scraper & in-memory cache
-- **Embedding**: Official YouTube Iframe Player & Live Chat API
-=======
-# MultiWatch
-A project create in order to watch multiple streams from YouTube at the same time.
->>>>>>> 1d7c4d37ea969bb419dbefe97d72970b0d24124a
+MultiWatch is pre-configured with `vercel.json` and NPM Workspaces for seamless 1-click deployment:
+
+1. Push code to your GitHub repository.
+2. Import the repository on [Vercel](https://vercel.com).
+3. Click **Deploy**. Vercel will automatically build and deploy the React frontend and serverless live detection API!
+
+---
+
+## 📜 License
+
+MIT License © 2026 MultiWatch Team

@@ -22,9 +22,9 @@ export default function ChannelCard({
 }) {
   const isLive = info?.isLive ?? false;
   const videoId = info?.videoId;
-  const channelName = info?.channelName || channel.name || channel.handle;
+  const channelName = channel.name || info?.channelName || channel.handle.replace('@', '');
   const avatar = info?.channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(channel.handle)}`;
-  const title = info?.title || channel.description || 'Channel stream';
+  const title = isLive ? (info?.title || 'Live Stream') : (channel.description || 'Offline');
   const viewerCount = info?.viewerCount;
 
   return (
@@ -141,7 +141,7 @@ export default function ChannelCard({
             {channel.handle}
           </p>
 
-          {/* Stream Title */}
+          {/* Stream Title / Channel Description */}
           <p className="text-xs text-white/70 mt-1.5 line-clamp-2 leading-relaxed">
             {title}
           </p>
