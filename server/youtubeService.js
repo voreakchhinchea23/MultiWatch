@@ -37,7 +37,7 @@ function fetchUrl(url, redirectCount = 0) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,km;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
         'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2OTQ0NTQ5ODQaAmVuIAEaBgiA_pauBg'
       }
     }, (res) => {
@@ -164,10 +164,9 @@ async function getChannelLiveInfo(rawIdentifier) {
         const isLiveNow = microformat?.liveBroadcastDetails?.isLiveNow === true;
         const isLiveDetails = details?.isLive === true;
         const hasEndTimestamp = !!microformat?.liveBroadcastDetails?.endTimestamp;
-        const isPostLive = html.includes('"isPostLive":true') || html.includes('"isPostLiveDvr":true');
 
-        // STRICT LIVE CHECK: Must be actively streaming right now and not an ended/archived broadcast
-        if ((isLiveNow || isLiveDetails) && !hasEndTimestamp && !isPostLive) {
+        // ACCURATE LIVE CHECK: Only true if actively broadcasting right now and not ended
+        if ((isLiveNow || isLiveDetails) && !hasEndTimestamp) {
           isLive = true;
           liveVideoId = details.videoId;
           liveTitle = details.title || '';
