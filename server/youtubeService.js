@@ -9,6 +9,15 @@ const CACHE_TTL = 30 * 1000; // 30 seconds
 const KNOWN_CHANNEL_IDS = {
   '@yaboiaddi': 'UCGXgBHuodxLPeB_ZMFjSuNg',
   '@mmegamind': 'UC4HYzwoCrQnisp76SfKK_bQ',
+  '@lyvisss': 'UCymNvh7IQDkL1TLi3FdgIUQ',
+  '@pechannie': 'UC8gLykz6r56Pk-buHS48S-w',
+  '@knoy95tv': 'UC-9oxn3YNVIpHABvt_eaXrA',
+  '@khmergamer': 'UC6Qvs3rKLF2IA1TVEeHn08Q',
+  '@mrkmav': 'UCsvVMHo3kb3zC_gYLn_IpkQ',
+  '@noobiegmk': 'UCIw1B8cZ1o3PP1QMvSRG4_w',
+  '@dsdsds19': 'UCoM0QAYjxSNcDR-2TnnYvkA',
+  '@ravenblaze99': 'UCnFLGRAn6jXrGDksCO1jEkA',
+  '@kaka42official': 'UC--FHdN6cMHEYLjrYkvY8dQ',
   '@lofigirl': 'UCSJ4gkVC6NrvII8umztf0Ow'
 };
 
