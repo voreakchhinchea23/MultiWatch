@@ -37,7 +37,7 @@ function fetchUrl(url, redirectCount = 0) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Language': 'en-US,en;q=0.9,km;q=0.8',
         'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2OTQ0NTQ5ODQaAmVuIAEaBgiA_pauBg'
       }
     }, (res) => {
@@ -148,41 +148,82 @@ async function getChannelLiveInfo(rawIdentifier) {
     let viewerCount = null;
     const channelId = await resolveChannelId(identifier);
 
-    // Fetch the /live endpoint
-    const liveRes = await fetchUrl(`https://www.youtube.com/${identifier}/live`);
-    const html = liveRes.body;
-
-    const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
-                        html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
-
-    if (playerMatch) {
+    // Step 1: Check YouTube RSS feed (100% reliable across datacenters)
+    let latestVideoId = null;
+    if (channelId) {
       try {
-        const playerResp = JSON.parse(playerMatch[1]);
-        const details = playerResp.videoDetails;
-        const microformat = playerResp.microformat?.playerMicroformatRenderer;
-
-        const isLiveNow = microformat?.liveBroadcastDetails?.isLiveNow === true;
-        const isLiveDetails = details?.isLive === true;
-        const hasEndTimestamp = !!microformat?.liveBroadcastDetails?.endTimestamp;
-
-        // ACCURATE LIVE CHECK: Only true if actively broadcasting right now and not ended
-        if ((isLiveNow || isLiveDetails) && !hasEndTimestamp) {
-          isLive = true;
-          liveVideoId = details.videoId;
-          liveTitle = details.title || '';
-          if (details.author) channelName = details.author;
-          viewerCount = microformat?.liveBroadcastDetails?.viewerCount || details.viewCount || null;
+        const rssRes = await fetchUrl(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
+        const xml = rssRes.body;
+        const videoIdMatch = xml.match(/<yt:videoId>([a-zA-Z0-9_-]{11})<\/yt:videoId>/);
+        if (videoIdMatch) {
+          latestVideoId = videoIdMatch[1];
         }
-      } catch (e) {
-        console.warn('Error parsing live player response:', e.message);
-      }
+      } catch (rssErr) {}
     }
 
-    // Extract avatar
-    const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
-                        html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
-    if (avatarMatch) {
-      channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
+    // Step 2: If latest video exists, test if it is actively streaming live right now
+    if (latestVideoId) {
+      try {
+        const watchRes = await fetchUrl(`https://www.youtube.com/watch?v=${latestVideoId}`);
+        const html = watchRes.body;
+        const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
+                            html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
+
+        if (playerMatch) {
+          const resp = JSON.parse(playerMatch[1]);
+          const details = resp.videoDetails;
+          const micro = resp.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
+          const isLiveNow = micro?.isLiveNow === true;
+          const isLiveDetails = details?.isLive === true;
+          const hasEnd = !!micro?.endTimestamp;
+
+          // Must be actively streaming and NOT ended
+          if ((isLiveNow || isLiveDetails) && !hasEnd) {
+            isLive = true;
+            liveVideoId = latestVideoId;
+            liveTitle = details?.title || '';
+            if (details?.author) channelName = details.author;
+            viewerCount = micro?.viewerCount || details?.viewCount || null;
+          }
+
+          if (details?.thumbnail?.thumbnails?.length > 0) {
+            channelAvatar = details.thumbnail.thumbnails[details.thumbnail.thumbnails.length - 1].url;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Step 3: If still not verified, check direct /live endpoint
+    if (!isLive) {
+      try {
+        const liveRes = await fetchUrl(`https://www.youtube.com/${identifier}/live`);
+        const html = liveRes.body;
+        const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});(?:var\s+meta|<\/script>)/s) ||
+                            html.match(/var\s+ytInitialPlayerResponse\s*=\s*({.+?});/);
+
+        if (playerMatch) {
+          const resp = JSON.parse(playerMatch[1]);
+          const details = resp.videoDetails;
+          const micro = resp.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
+          const isLiveNow = micro?.isLiveNow === true;
+          const isLiveDetails = details?.isLive === true;
+          const hasEnd = !!micro?.endTimestamp;
+
+          if ((isLiveNow || isLiveDetails) && !hasEnd) {
+            isLive = true;
+            liveVideoId = details?.videoId;
+            liveTitle = details?.title || '';
+            if (details?.author) channelName = details.author;
+            viewerCount = micro?.viewerCount || details?.viewCount || null;
+          }
+        }
+
+        const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
+                            html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
+        if (avatarMatch && !channelAvatar) {
+          channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
+        }
+      } catch (e) {}
     }
 
     const result = {
