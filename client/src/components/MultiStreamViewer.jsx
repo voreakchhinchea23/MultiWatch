@@ -22,6 +22,9 @@ import {
   Gauge,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Zap,
   Tv,
   Layers
 } from 'lucide-react';
@@ -67,6 +70,7 @@ export default function MultiStreamViewer({
   const roomContainerRef = useRef(null);
   const qualityPresetRef = useRef(null);
   const speedPresetRef = useRef(null);
+  const backstageScrollRef = useRef(null);
 
   // Track mute status for each stream handle: { [handle]: boolean }
   const [mutedMap, setMutedMap] = useState(() => {
@@ -625,10 +629,77 @@ export default function MultiStreamViewer({
         <div className="flex-1 p-2 sm:p-3 overflow-y-auto flex flex-col gap-2.5">
           {activeStreams.length > 0 ? (
             viewMode === 'stage' && secondaryStreams.length > 0 ? (
-              /* STAGE MODE: 1 Big Screen on Top + Sub-screens Row on Bottom */
-              <div className="flex flex-col h-full gap-2.5">
-                {/* 1 Big Primary Screen */}
-                <div className="flex-[3] min-h-[300px] sm:min-h-[420px] w-full">
+              /* ==================== REDESIGNED STAGE VIEW ==================== */
+              <div className="flex flex-col h-full gap-2 min-h-0 overflow-hidden">
+                
+                {/* Stage Quick Switcher / Director Bar */}
+                <div className="flex items-center justify-between px-3 py-1.5 rounded-2xl bg-[#090e1c]/90 border border-white/[0.08] backdrop-blur-xl shadow-lg flex-shrink-0 flex-wrap gap-2">
+                  
+                  {/* Left: Main Stage Pill & Solo Audio Shortcut */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gradient-to-r from-blue-600/30 to-indigo-600/20 border border-blue-500/40 text-blue-300 shadow-sm">
+                      <MonitorPlay className="h-3.5 w-3.5 text-blue-400" />
+                      <span className="text-[11px] font-black tracking-wider uppercase hidden sm:inline">Main Stage:</span>
+                      <span className="text-xs font-bold text-white font-display truncate max-w-[120px] sm:max-w-[160px]">
+                        {channelsInfo[primaryStream.handle]?.channelName || primaryStream.name || primaryStream.handle}
+                      </span>
+                    </div>
+                    
+                    {/* Audio Focus Solo Button */}
+                    <button
+                      onClick={() => handleAudioFocus(primaryStream.handle)}
+                      title="Solo Main Stage: Unmute Main Stream at 100% and mute all secondary streams"
+                      className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.06] hover:bg-blue-600/20 hover:border-blue-500/40 text-white/75 hover:text-white border border-white/[0.08] text-xs font-semibold transition-all active:scale-95"
+                    >
+                      <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Solo Stage Audio</span>
+                    </button>
+                  </div>
+
+                  {/* Center / Right: Fast Streamer Switcher Chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 max-w-full">
+                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider hidden lg:inline mr-1">
+                      Quick Switch:
+                    </span>
+                    {activeStreams.map(stream => {
+                      const isMain = stream.handle === currentPrimaryHandle;
+                      const sInfo = channelsInfo[stream.handle];
+                      const sName = sInfo?.channelName || stream.name || stream.handle;
+                      const sAvatar = sInfo?.channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(stream.handle)}`;
+                      const isLiveNow = sInfo?.isLive;
+
+                      return (
+                        <button
+                          key={stream.handle}
+                          onClick={() => handleMakePrimary(stream.handle)}
+                          title={isMain ? "Currently on Main Stage" : `Click to switch ${sName} to Main Stage`}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border ${
+                            isMain
+                              ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white border-blue-400 shadow-md shadow-blue-500/25 ring-1 ring-blue-400 scale-[1.02]'
+                              : 'bg-white/[0.06] hover:bg-white/[0.14] text-white/70 hover:text-white border-white/[0.08]'
+                          }`}
+                        >
+                          <img
+                            src={sAvatar}
+                            alt={sName}
+                            className="h-4 w-4 rounded-full object-cover border border-white/30"
+                            onError={(e) => {
+                              e.target.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(stream.handle)}`;
+                            }}
+                          />
+                          {isLiveNow && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                          )}
+                          <span className="truncate max-w-[85px] sm:max-w-[110px]">{sName}</span>
+                          {isMain && <span className="text-[9px] bg-white/20 px-1 rounded font-black">STAGE</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Main Stage Player Area (Takes dominant space, centered, 16:9 proportional framing) */}
+                <div className="flex-1 min-h-0 w-full relative flex items-center justify-center rounded-2xl overflow-hidden shadow-2xl bg-black border border-blue-500/40 ring-1 ring-blue-500/20">
                   <StreamPlayer
                     key={primaryStream.handle}
                     channel={primaryStream}
@@ -647,40 +718,125 @@ export default function MultiStreamViewer({
                   />
                 </div>
 
-                {/* Bottom Row of Sub-Screens */}
-                <div className={`flex-[1.2] min-h-[160px] sm:min-h-[190px] grid gap-2.5 ${
-                  secondaryStreams.length === 1 
-                    ? 'grid-cols-1 max-w-2xl mx-auto w-full' 
-                    : secondaryStreams.length === 2 
-                    ? 'grid-cols-2' 
-                    : 'grid-cols-2 md:grid-cols-3'
-                }`}>
-                  {secondaryStreams.map(stream => (
-                    <StreamPlayer
-                      key={stream.handle}
-                      channel={stream}
-                      info={channelsInfo[stream.handle]}
-                      onRemove={onRemoveStream}
-                      onToggleChat={handleToggleChatForStream}
-                      isChatOpen={isChatOpen && activeChatHandle === stream.handle}
-                      isPrimary={false}
-                      onMakePrimary={handleMakePrimary}
-                      isMuted={!!mutedMap[stream.handle]}
-                      onToggleMute={handleToggleMute}
-                      volume={volumeMap[stream.handle] ?? 35}
-                      onSetVolume={handleSetVolume}
-                      totalStreams={activeStreams.length}
-                      globalQuality={qualityMap[stream.handle] || globalQualityPreset}
-                      globalSpeed={globalSpeed}
-                    />
-                  ))}
+                {/* Backstage Streams Dock Section (Bottom Row) */}
+                <div className="flex-shrink-0 flex flex-col gap-1.5 bg-[#090e1a]/90 p-2 sm:p-2.5 rounded-2xl border border-white/[0.08] backdrop-blur-md shadow-lg">
+                  
+                  {/* Backstage Dock Title Bar with Scroll controls */}
+                  <div className="flex items-center justify-between px-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                      </span>
+                      <span className="font-extrabold text-white/90 uppercase tracking-wider text-[11px]">
+                        Backstage Streams ({secondaryStreams.length})
+                      </span>
+                      <span className="text-[10px] text-white/40 hidden sm:inline">
+                        • Click card or "Swap to Stage" to switch main view
+                      </span>
+                    </div>
+
+                    {/* Quick Dock Controls (Scroll Left/Right for many streams + Mute Backstage) */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setMutedMap(prev => {
+                            const next = { ...prev };
+                            secondaryStreams.forEach(s => { next[s.handle] = true; });
+                            return next;
+                          });
+                        }}
+                        title="Mute all backstage streams"
+                        className="px-2 py-0.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/60 hover:text-white text-[10px] font-semibold border border-white/[0.06] transition-colors"
+                      >
+                        Mute Backstage
+                      </button>
+
+                      {secondaryStreams.length > 2 && (
+                        <div className="flex items-center gap-1 pl-1 border-l border-white/[0.08]">
+                          <button
+                            onClick={() => {
+                              if (backstageScrollRef.current) {
+                                backstageScrollRef.current.scrollBy({ left: -260, behavior: 'smooth' });
+                              }
+                            }}
+                            title="Scroll Backstage Left"
+                            className="p-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
+                          >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (backstageScrollRef.current) {
+                                backstageScrollRef.current.scrollBy({ left: 260, behavior: 'smooth' });
+                              }
+                            }}
+                            title="Scroll Backstage Right"
+                            className="p-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Backstage Cards Carousel / Dock Container */}
+                  <div 
+                    ref={backstageScrollRef}
+                    className={`flex items-center gap-3 overflow-x-auto scrollbar-none py-1 snap-x ${
+                      secondaryStreams.length <= 2 ? 'justify-start sm:justify-center' : 'justify-start'
+                    }`}
+                  >
+                    {secondaryStreams.map(stream => {
+                      const streamInfo = channelsInfo[stream.handle];
+                      const sName = streamInfo?.channelName || stream.name || stream.handle;
+                      const isStreamMuted = !!mutedMap[stream.handle];
+                      const vol = volumeMap[stream.handle] ?? 35;
+
+                      return (
+                        <div
+                          key={stream.handle}
+                          className="group/bcard relative aspect-video h-32 sm:h-36 md:h-40 lg:h-44 flex-shrink-0 rounded-2xl overflow-hidden border border-white/[0.12] hover:border-blue-500/80 hover:ring-2 hover:ring-blue-500/40 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 snap-center bg-black"
+                        >
+                          {/* The Stream Player */}
+                          <StreamPlayer
+                            channel={stream}
+                            info={streamInfo}
+                            onRemove={onRemoveStream}
+                            onToggleChat={handleToggleChatForStream}
+                            isChatOpen={isChatOpen && activeChatHandle === stream.handle}
+                            isPrimary={false}
+                            onMakePrimary={handleMakePrimary}
+                            isMuted={isStreamMuted}
+                            onToggleMute={handleToggleMute}
+                            volume={vol}
+                            onSetVolume={handleSetVolume}
+                            totalStreams={activeStreams.length}
+                            globalQuality={qualityMap[stream.handle] || globalQualityPreset}
+                            globalSpeed={globalSpeed}
+                          />
+
+                          {/* Quick Swap Overlay Banner on Bottom of Mini Card */}
+                          <button
+                            onClick={() => handleMakePrimary(stream.handle)}
+                            title={`Click to promote ${sName} to Main Stage`}
+                            className="absolute bottom-1.5 left-2 right-2 py-1 px-2.5 rounded-xl bg-[#090e1c]/90 hover:bg-blue-600 text-white text-[11px] font-extrabold flex items-center justify-center gap-1.5 backdrop-blur-md border border-white/20 hover:border-blue-400 opacity-0 group-hover/bcard:opacity-100 transition-all duration-200 z-40 shadow-lg active:scale-95"
+                          >
+                            <Zap className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                            <span>Swap to Main Stage</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             ) : viewMode === 'theater' && secondaryStreams.length > 0 ? (
-              /* THEATER MODE: 1 Big Screen Left + Sub-screens Column Right */
-              <div className="flex flex-col md:flex-row h-full gap-2.5">
+              /* ==================== REFINED THEATER MODE ==================== */
+              <div className="flex flex-col md:flex-row h-full gap-2.5 min-h-0 overflow-hidden">
                 {/* Big Primary Screen */}
-                <div className="flex-[3] min-h-[300px] sm:min-h-[420px] w-full">
+                <div className="flex-1 min-h-0 w-full h-full rounded-2xl overflow-hidden border border-blue-500/40 ring-1 ring-blue-500/20 shadow-2xl bg-black">
                   <StreamPlayer
                     key={primaryStream.handle}
                     channel={primaryStream}
@@ -700,9 +856,14 @@ export default function MultiStreamViewer({
                 </div>
 
                 {/* Right Column of Sub-Screens */}
-                <div className="flex-[1.2] flex flex-col gap-2.5 overflow-y-auto min-w-[240px] max-w-sm">
+                <div className="w-full md:w-72 lg:w-80 flex flex-col gap-2.5 overflow-y-auto flex-shrink-0 pr-0.5">
+                  <div className="flex items-center justify-between px-1 text-xs">
+                    <span className="text-[11px] font-extrabold uppercase text-white/80 tracking-wider">
+                      Side Streams ({secondaryStreams.length})
+                    </span>
+                  </div>
                   {secondaryStreams.map(stream => (
-                    <div key={stream.handle} className="h-44 sm:h-52 w-full flex-shrink-0">
+                    <div key={stream.handle} className="w-full aspect-video flex-shrink-0 rounded-2xl overflow-hidden border border-white/[0.12] hover:border-blue-500/60 transition-all bg-black">
                       <StreamPlayer
                         channel={stream}
                         info={channelsInfo[stream.handle]}
@@ -724,32 +885,38 @@ export default function MultiStreamViewer({
                 </div>
               </div>
             ) : (
-              /* GRID MODE / SINGLE STREAM */
-              <div className={`h-full gap-2.5 ${
+              /* ==================== GRID MODE / SINGLE STREAM ==================== */
+              <div className={`h-full w-full gap-2.5 overflow-y-auto p-0.5 ${
                 activeStreams.length === 1
                   ? 'grid grid-cols-1'
                   : activeStreams.length === 2
                   ? 'grid grid-cols-1 lg:grid-cols-2'
-                  : 'grid grid-cols-1 md:grid-cols-2'
+                  : activeStreams.length === 3
+                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                  : activeStreams.length === 4
+                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2'
+                  : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
               }`}>
                 {activeStreams.map(stream => (
-                  <StreamPlayer
-                    key={stream.handle}
-                    channel={stream}
-                    info={channelsInfo[stream.handle]}
-                    onRemove={onRemoveStream}
-                    onToggleChat={handleToggleChatForStream}
-                    isChatOpen={isChatOpen && activeChatHandle === stream.handle}
-                    isPrimary={stream.handle === currentPrimaryHandle}
-                    onMakePrimary={handleMakePrimary}
-                    isMuted={!!mutedMap[stream.handle]}
-                    onToggleMute={handleToggleMute}
-                    volume={volumeMap[stream.handle] ?? 100}
-                    onSetVolume={handleSetVolume}
-                    totalStreams={activeStreams.length}
-                    globalQuality={qualityMap[stream.handle] || globalQualityPreset}
-                    globalSpeed={globalSpeed}
-                  />
+                  <div key={stream.handle} className="w-full aspect-video min-h-0 rounded-2xl overflow-hidden border border-white/[0.12] bg-black">
+                    <StreamPlayer
+                      key={stream.handle}
+                      channel={stream}
+                      info={channelsInfo[stream.handle]}
+                      onRemove={onRemoveStream}
+                      onToggleChat={handleToggleChatForStream}
+                      isChatOpen={isChatOpen && activeChatHandle === stream.handle}
+                      isPrimary={stream.handle === currentPrimaryHandle}
+                      onMakePrimary={handleMakePrimary}
+                      isMuted={!!mutedMap[stream.handle]}
+                      onToggleMute={handleToggleMute}
+                      volume={volumeMap[stream.handle] ?? 100}
+                      onSetVolume={handleSetVolume}
+                      totalStreams={activeStreams.length}
+                      globalQuality={qualityMap[stream.handle] || globalQualityPreset}
+                      globalSpeed={globalSpeed}
+                    />
+                  </div>
                 ))}
               </div>
             )

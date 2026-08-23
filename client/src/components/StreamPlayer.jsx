@@ -268,6 +268,11 @@ export default function StreamPlayer({
               <span className="text-xs sm:text-sm font-black text-white truncate font-display drop-shadow">
                 {channelName}
               </span>
+              {isPrimary && totalStreams > 1 && (
+                <span className="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-blue-600 text-white shadow-sm flex-shrink-0 tracking-wider">
+                  ON STAGE
+                </span>
+              )}
               {isLive ? (
                 <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-red-600/90 text-white shadow-sm flex-shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
@@ -536,7 +541,7 @@ export default function StreamPlayer({
       </div>
 
       {/* Video Player Iframe Area */}
-      <div className="relative w-full h-full min-h-[220px] sm:min-h-[280px] bg-black flex items-center justify-center">
+      <div className="relative w-full h-full min-h-0 bg-black flex items-center justify-center">
         {embedUrl ? (
           <iframe
             ref={iframeRef}
