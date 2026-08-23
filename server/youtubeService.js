@@ -96,46 +96,7 @@ function normalizeIdentifier(input) {
 }
 
 /**
- * Extract a balanced JSON object from a string starting at a given keyword
- */
-function extractJsonObject(str, searchKeyword) {
-  const kwIdx = typeof searchKeyword === 'number' ? searchKeyword : str.indexOf(searchKeyword);
-  if (kwIdx === -1) return null;
-
-  let openBraces = 0;
-  let inString = false;
-  let escape = false;
-  let start = -1;
-
-  for (let i = kwIdx; i < str.length; i++) {
-    const char = str[i];
-    if (!inString) {
-      if (char === '{') {
-        if (openBraces === 0) start = i;
-        openBraces++;
-      } else if (char === '}') {
-        openBraces--;
-        if (openBraces === 0 && start !== -1) {
-          return str.substring(start, i + 1);
-        }
-      } else if (char === '"') {
-        inString = true;
-      }
-    } else {
-      if (escape) {
-        escape = false;
-      } else if (char === '\\') {
-        escape = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Parse YouTube HTML response and extract live stream status & metadata
+ * Parse YouTube HTML response and extract authoritative live stream status & video ID
  */
 function parseLiveStatusFromHtml(html, identifier) {
   let isLive = false;
@@ -146,7 +107,26 @@ function parseLiveStatusFromHtml(html, identifier) {
   let channelId = '';
   let viewerCount = null;
 
-  // 1. Extract Channel ID
+  // 1. Authoritative Video ID from Meta Tags
+  // When a channel is live, YouTube's /live page redirects or renders with canonical/og:url pointing to watch?v=VIDEO_ID
+  const canonMatch = html.match(/<link rel="canonical" href="([^"]+)">/);
+  const ogUrlMatch = html.match(/<meta property="og:url" content="([^"]+)">/);
+  const ogVideoMatch = html.match(/<meta property="og:video:url" content="([^"]+)">/);
+  const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
+  const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
+
+  const mainUrl = (ogUrlMatch && ogUrlMatch[1]) || (canonMatch && canonMatch[1]) || '';
+  let authoritativeVideoId = null;
+
+  if (mainUrl.includes('watch?v=')) {
+    const vMatch = mainUrl.match(/watch\?v=([a-zA-Z0-9_-]{11})/);
+    if (vMatch) authoritativeVideoId = vMatch[1];
+  } else if (ogVideoMatch && ogVideoMatch[1].includes('/embed/')) {
+    const vMatch = ogVideoMatch[1].match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (vMatch) authoritativeVideoId = vMatch[1];
+  }
+
+  // 2. Extract Channel ID
   const chMatch = html.match(/<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})">/) ||
                   html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/) ||
                   html.match(/"browseId":"(UC[a-zA-Z0-9_-]{22})"/);
@@ -158,84 +138,95 @@ function parseLiveStatusFromHtml(html, identifier) {
     }
   }
 
-  // 2. Extract Avatar
-  const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
-                      html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
-  if (avatarMatch) {
-    channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
-  }
-
-  // 3. Extract Channel Name from Title or Metadata
-  const titleTagMatch = html.match(/<title>([^<]+)<\/title>/);
-  if (titleTagMatch) {
-    const cleanTitle = titleTagMatch[1].replace(/ - YouTube$/, '').trim();
-    if (cleanTitle && !cleanTitle.includes('404 Not Found')) {
-      channelName = cleanTitle;
+  // 3. Extract Avatar & Title
+  if (ogImageMatch && ogImageMatch[1]) {
+    channelAvatar = ogImageMatch[1];
+  } else {
+    const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
+                        html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
+    if (avatarMatch) {
+      channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
     }
   }
 
-  // 4. Primary Detection: ytInitialPlayerResponse
-  const playerJson = extractJsonObject(html, 'ytInitialPlayerResponse');
-  if (playerJson) {
-    try {
-      const data = JSON.parse(playerJson);
-      const details = data.videoDetails;
-      const micro = data.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
-
-      const isLiveNow = micro?.isLiveNow === true;
-      const isLiveDetails = details?.isLive === true;
-      const isLiveContent = details?.isLiveContent === true;
-      const hasEnd = !!micro?.endTimestamp;
-
-      if ((isLiveNow || isLiveDetails || isLiveContent) && !hasEnd && details?.videoId) {
-        isLive = true;
-        liveVideoId = details.videoId;
-        liveTitle = details.title || '';
-        if (details.author) channelName = details.author;
-        viewerCount = micro?.viewerCount || details.viewCount || null;
+  if (ogTitleMatch && ogTitleMatch[1]) {
+    liveTitle = ogTitleMatch[1];
+  } else {
+    const titleTagMatch = html.match(/<title>([^<]+)<\/title>/);
+    if (titleTagMatch) {
+      const cleanTitle = titleTagMatch[1].replace(/ - YouTube$/, '').trim();
+      if (cleanTitle && !cleanTitle.includes('404 Not Found')) {
+        channelName = cleanTitle;
       }
-    } catch (e) {}
+    }
   }
 
-  // 5. Secondary Detection: ytInitialData (channel page / streams tab with LIVE badge)
-  if (!isLive) {
-    const dataJson = extractJsonObject(html, 'ytInitialData');
-    if (dataJson) {
-      try {
-        const strData = dataJson;
-        if (strData.includes('BADGE_STYLE_TYPE_LIVE_NOW') || strData.includes('"style":"BADGE_STYLE_TYPE_LIVE_NOW"')) {
-          const vMatch = strData.match(/"videoId":"([a-zA-Z0-9_-]{11})"[^}]+?"style":"BADGE_STYLE_TYPE_LIVE_NOW"/) ||
-                         strData.match(/"style":"BADGE_STYLE_TYPE_LIVE_NOW"[^}]+?"videoId":"([a-zA-Z0-9_-]{11})"/);
-          if (vMatch) {
-            isLive = true;
-            liveVideoId = vMatch[1];
-            const tMatch = strData.match(new RegExp(`"videoId":"${liveVideoId}"[\\s\\S]*?"title":\\{"runs":\\[\\{"text":"([^"]+)"`));
-            if (tMatch) liveTitle = tMatch[1];
-          }
+  // 4. Primary Detection: Find exact `ytInitialPlayerResponse =` object
+  const playerKeyword = 'ytInitialPlayerResponse =';
+  const pIdx = html.indexOf(playerKeyword);
+  if (pIdx !== -1) {
+    const braceIdx = html.indexOf('{', pIdx);
+    if (braceIdx !== -1) {
+      let depth = 0;
+      let inStr = false;
+      let esc = false;
+      let jsonEnd = -1;
+
+      for (let i = braceIdx; i < html.length; i++) {
+        const c = html[i];
+        if (!inStr) {
+          if (c === '{') depth++;
+          else if (c === '}') {
+            depth--;
+            if (depth === 0) {
+              jsonEnd = i;
+              break;
+            }
+          } else if (c === '"') inStr = true;
+        } else {
+          if (esc) esc = false;
+          else if (c === '\\') esc = true;
+          else if (c === '"') inStr = false;
         }
-      } catch (e) {}
+      }
+
+      if (jsonEnd !== -1) {
+        try {
+          const data = JSON.parse(html.substring(braceIdx, jsonEnd + 1));
+          const details = data.videoDetails;
+          const micro = data.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
+
+          const isLiveNow = micro?.isLiveNow === true;
+          const isLiveDetails = details?.isLive === true || details?.isLiveContent === true;
+          const hasEnd = !!micro?.endTimestamp;
+
+          // Strict validation: Only accept if this is the target channel's video, not a recommended video
+          if (details?.videoId && (authoritativeVideoId ? details.videoId === authoritativeVideoId : true)) {
+            if ((isLiveNow || isLiveDetails) && !hasEnd) {
+              isLive = true;
+              liveVideoId = details.videoId;
+              if (details.title) liveTitle = details.title;
+              if (details.author) channelName = details.author;
+              viewerCount = micro?.viewerCount || details.viewCount || null;
+            }
+          }
+        } catch (e) {}
+      }
     }
   }
 
-  // 6. Tertiary Fallback: Regex on raw HTML
-  if (!isLive) {
-    if (html.includes('"isLive":true') || html.includes('"isLiveNow":true') || html.includes('BADGE_STYLE_TYPE_LIVE_NOW')) {
-      const vMatch = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      const titleMatch = html.match(/"title":{"runs":\[{"text":"([^"]+)"/) || html.match(/"title":"([^"]+)"/);
-      if (vMatch && !html.includes('"endTimestamp"')) {
-        isLive = true;
-        liveVideoId = vMatch[1];
-        if (titleMatch) liveTitle = titleMatch[1];
-      }
-    }
+  // 5. Fallback: If canonical/og indicates an active watch?v= live stream
+  if (!isLive && authoritativeVideoId && ogVideoMatch && !html.includes('"endTimestamp"')) {
+    isLive = true;
+    liveVideoId = authoritativeVideoId;
   }
 
   return {
     identifier,
     isLive,
     videoId: isLive ? liveVideoId : null,
-    title: isLive ? liveTitle : channelName,
-    channelName,
+    title: isLive ? liveTitle : (channelName || identifier),
+    channelName: channelName || identifier.replace(/^@/, ''),
     channelAvatar: channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(identifier)}`,
     channelId: channelId || KNOWN_CHANNEL_IDS[identifier.toLowerCase()] || '',
     viewerCount: isLive ? viewerCount : null,
@@ -287,26 +278,6 @@ async function getChannelLiveInfo(rawIdentifier) {
 
     const res = await fetchUrl(targetUrl, 6000);
     const parsed = parseLiveStatusFromHtml(res.body, identifier);
-
-    // If /live did not detect live, check /streams tab as a fast fallback
-    if (!parsed.isLive) {
-      try {
-        const streamsUrl = identifier.startsWith('UC')
-          ? `https://www.youtube.com/channel/${identifier}/streams`
-          : `https://www.youtube.com/${identifier}/streams`;
-        const streamsRes = await fetchUrl(streamsUrl, 4000);
-        const streamsParsed = parseLiveStatusFromHtml(streamsRes.body, identifier);
-        if (streamsParsed.isLive) {
-          parsed.isLive = true;
-          parsed.videoId = streamsParsed.videoId;
-          parsed.title = streamsParsed.title || parsed.title;
-          parsed.viewerCount = streamsParsed.viewerCount;
-          parsed.thumbnail = `https://i.ytimg.com/vi/${streamsParsed.videoId}/hqdefault.jpg`;
-          parsed.liveUrl = `https://www.youtube.com/watch?v=${streamsParsed.videoId}`;
-          parsed.chatUrl = `https://www.youtube.com/live_chat?v=${streamsParsed.videoId}`;
-        }
-      } catch (streamErr) {}
-    }
 
     cache.set(identifier, { timestamp: Date.now(), data: parsed });
     return parsed;
