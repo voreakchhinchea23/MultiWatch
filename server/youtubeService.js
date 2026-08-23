@@ -217,18 +217,13 @@ function parseLiveStatusFromHtml(html, identifier) {
 
   // Tertiary Fallback: Canonical / OG metadata check for live watch page
   if (!isLive) {
-    const canonWatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                       html.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                       html.match(/<link rel="canonical" href="([^"]+)">/);
-    if (canonWatch) {
-      const canonHref = canonWatch[1] || '';
-      if (canonHref.includes('watch?v=')) {
-        const vMatch = canonHref.match(/watch\?v=([a-zA-Z0-9_-]{11})/);
-        if (vMatch && !html.includes('"endTimestamp"')) {
-          isLive = true;
-          liveVideoId = vMatch[1];
-        }
-      }
+    const vMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
+                   html.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
+                   html.match(/<meta property="og:video:url" content="https:\/\/www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})">/) ||
+                   html.match(/href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
+    if (vMatch && !html.includes('"endTimestamp"')) {
+      isLive = true;
+      liveVideoId = vMatch[1];
     }
   }
 
