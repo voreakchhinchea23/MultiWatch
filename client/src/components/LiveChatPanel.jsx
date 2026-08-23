@@ -25,15 +25,11 @@ export default function LiveChatPanel({
   // Add &dark_theme=1 and &theme=dark to guarantee YouTube renders chat in Dark Mode
   const chatEmbedUrl = videoId
     ? `https://www.youtube.com/live_chat?v=${videoId}&embed_domain=${encodeURIComponent(currentDomain)}&dark_theme=1&theme=dark`
-    : channelId
-    ? `https://www.youtube.com/live_chat?channel=${channelId}&embed_domain=${encodeURIComponent(currentDomain)}&dark_theme=1&theme=dark`
     : '';
 
   const handlePopout = () => {
     const popoutUrl = videoId
       ? `https://www.youtube.com/live_chat?v=${videoId}&is_popout=1`
-      : channelId
-      ? `https://www.youtube.com/live_chat?channel=${channelId}&is_popout=1`
       : null;
     if (popoutUrl) {
       window.open(popoutUrl, '_blank', 'width=420,height=680,resizable=yes,scrollbars=yes');

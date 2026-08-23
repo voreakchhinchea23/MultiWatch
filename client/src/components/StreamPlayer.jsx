@@ -50,9 +50,6 @@ export default function StreamPlayer({
   let embedUrl = '';
   if (isLive && videoId) {
     embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muteParam}&enablejsapi=1&origin=${encodeURIComponent(currentOrigin)}`;
-  } else if (isLive && (channelId || channel.channelId)) {
-    const cId = channelId || channel.channelId;
-    embedUrl = `https://www.youtube-nocookie.com/embed/live_stream?channel=${cId}&autoplay=1&mute=${muteParam}&enablejsapi=1`;
   }
 
   // Handle instant volume & mute changes via postMessage without reloading iframe
