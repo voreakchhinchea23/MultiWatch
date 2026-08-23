@@ -48,13 +48,11 @@ export default function StreamPlayer({
   const muteParam = effectiveMuted ? 1 : 0;
 
   let embedUrl = '';
-  if (videoId) {
+  if (isLive && videoId) {
     embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=${muteParam}&enablejsapi=1&origin=${encodeURIComponent(currentOrigin)}`;
-  } else if (channelId || channel.channelId) {
+  } else if (isLive && (channelId || channel.channelId)) {
     const cId = channelId || channel.channelId;
     embedUrl = `https://www.youtube-nocookie.com/embed/live_stream?channel=${cId}&autoplay=1&mute=${muteParam}&enablejsapi=1`;
-  } else if (channel.handle) {
-    embedUrl = `https://www.youtube-nocookie.com/embed/live_stream?channel=${channel.handle.replace('@', '')}&autoplay=1&mute=${muteParam}&enablejsapi=1`;
   }
 
   // Handle instant volume & mute changes via postMessage without reloading iframe
@@ -143,8 +141,8 @@ export default function StreamPlayer({
                   LIVE {viewerCount && `(${formatViewerCount(viewerCount)})`}
                 </span>
               ) : (
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 backdrop-blur-sm flex-shrink-0 font-medium">
-                  {videoId ? 'LATEST STREAM' : 'OFFLINE'}
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-white/70 border border-white/10 backdrop-blur-sm flex-shrink-0 font-medium">
+                  OFFLINE
                 </span>
               )}
             </div>

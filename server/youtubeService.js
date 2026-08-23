@@ -148,25 +148,13 @@ async function getChannelLiveInfo(rawIdentifier) {
     let channelAvatar = '';
     let viewerCount = null;
 
-    // Step 1: Query YouTube RSS Feed to get latest video/stream ID & title
-    let latestVideoId = null;
-    let latestTitle = '';
+    // Step 1: Query YouTube RSS Feed
     if (channelId) {
       try {
         const rssRes = await fetchUrl(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
         const xml = rssRes.body;
         const authorMatch = xml.match(/<name>([^<]+)<\/name>/);
         if (authorMatch) channelName = authorMatch[1].trim();
-
-        const vidMatch = xml.match(/<yt:videoId>([a-zA-Z0-9_-]{11})<\/yt:videoId>/);
-        if (vidMatch) {
-          latestVideoId = vidMatch[1];
-        }
-
-        const titleMatch = xml.match(/<media:title>([^<]+)<\/media:title>/) || xml.match(/<title>([^<]+)<\/title>/);
-        if (titleMatch) {
-          latestTitle = titleMatch[1].trim();
-        }
       } catch (rssErr) {}
     }
 
@@ -190,8 +178,8 @@ async function getChannelLiveInfo(rawIdentifier) {
 
             if ((isLiveNow || isLiveDetails) && !hasEnd) {
               isLive = true;
-              liveVideoId = details?.videoId || latestVideoId;
-              liveTitle = details?.title || latestTitle;
+              liveVideoId = details?.videoId || null;
+              liveTitle = details?.title || '';
               if (details?.author) channelName = details.author;
               viewerCount = micro?.viewerCount || details?.viewCount || null;
             }
@@ -207,22 +195,18 @@ async function getChannelLiveInfo(rawIdentifier) {
       }
     } catch(e){}
 
-    // Final video ID: If live, use live video ID; if offline, use the latest past live stream / video!
-    const finalVideoId = isLive ? (liveVideoId || latestVideoId) : latestVideoId;
-    const finalTitle = isLive ? (liveTitle || latestTitle) : (latestTitle || channelName);
-
     const result = {
       identifier,
       isLive,
-      videoId: finalVideoId,
-      title: finalTitle,
+      videoId: isLive ? liveVideoId : null, // strictly null when offline to avoid showing old videos
+      title: isLive ? liveTitle : channelName,
       channelName,
       channelAvatar: channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(identifier)}`,
       channelId: channelId || '',
       viewerCount: isLive ? viewerCount : null,
-      thumbnail: finalVideoId ? `https://i.ytimg.com/vi/${finalVideoId}/hqdefault.jpg` : '',
-      liveUrl: finalVideoId ? `https://www.youtube.com/watch?v=${finalVideoId}` : `https://www.youtube.com/${identifier}`,
-      chatUrl: finalVideoId ? `https://www.youtube.com/live_chat?v=${finalVideoId}` : (channelId ? `https://www.youtube.com/live_chat?channel=${channelId}` : ''),
+      thumbnail: (isLive && liveVideoId) ? `https://i.ytimg.com/vi/${liveVideoId}/hqdefault.jpg` : '',
+      liveUrl: (isLive && liveVideoId) ? `https://www.youtube.com/watch?v=${liveVideoId}` : `https://www.youtube.com/${identifier}`,
+      chatUrl: (isLive && liveVideoId) ? `https://www.youtube.com/live_chat?v=${liveVideoId}` : '',
       updatedAt: new Date().toISOString()
     };
 

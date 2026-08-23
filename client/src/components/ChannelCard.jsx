@@ -6,9 +6,7 @@ import {
   Trash2, 
   Play, 
   Check, 
-  Tv, 
-  MessageSquare,
-  Sparkles
+  Tv
 } from 'lucide-react';
 import { formatViewerCount } from '../utils/storage';
 
@@ -27,45 +25,76 @@ export default function ChannelCard({
   const title = isLive ? (info?.title || 'Live Stream') : (channel.description || 'Offline');
   const viewerCount = info?.viewerCount;
 
+  // Clicking the card: Selects if live; opens YouTube channel in new tab if offline
+  const handleCardClick = () => {
+    if (isLive) {
+      onToggleSelect(channel.handle);
+    } else {
+      window.open(`https://www.youtube.com/${channel.handle}`, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  // Button action: Quick watch if live; open YouTube channel if offline
+  const handleActionClick = (e) => {
+    e.stopPropagation();
+    if (isLive) {
+      onQuickWatch(channel.handle);
+    } else {
+      window.open(`https://www.youtube.com/${channel.handle}`, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div 
-      className={`group relative rounded-2xl p-4 transition-all duration-300 flex flex-col justify-between ${
-        isSelected 
-          ? 'bg-blue-950/40 border-2 border-blue-500/80 shadow-lg shadow-blue-500/20' 
-          : 'bg-[#101728]/70 border border-white/[0.08] hover:border-white/[0.2] hover:bg-[#152038]/80 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-1'
+      onClick={handleCardClick}
+      className={`group relative rounded-2xl p-4 transition-all duration-300 flex flex-col justify-between cursor-pointer ${
+        isLive
+          ? isSelected 
+            ? 'bg-blue-950/40 border-2 border-blue-500/80 shadow-lg shadow-blue-500/20' 
+            : 'bg-[#101728]/80 border border-red-500/30 hover:border-red-500/70 hover:bg-[#152038] hover:shadow-xl hover:shadow-red-500/10 hover:-translate-y-1'
+          : 'bg-[#0a0f1d]/50 border border-white/[0.04] opacity-75 hover:opacity-100 hover:border-white/[0.15] hover:bg-[#101728]/60'
       }`}
     >
-      {/* Top row: Checkbox, Live Badge, External Link */}
+      {/* Top row: Checkbox / Offline status, Live Badge, Delete Button */}
       <div className="flex items-center justify-between gap-2 mb-3">
-        {/* Selection Checkbox */}
-        <label 
-          onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-2 cursor-pointer select-none"
-        >
-          <div 
-            onClick={() => onToggleSelect(channel.handle)}
-            className={`h-5 w-5 rounded-md border flex items-center justify-center transition-all ${
-              isSelected 
-                ? 'bg-blue-600 border-blue-500 text-white shadow-sm shadow-blue-500/50' 
-                : 'border-white/30 bg-black/40 group-hover:border-white/50'
-            }`}
+        {/* Selection Checkbox (Active only if LIVE) */}
+        {isLive ? (
+          <label 
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect(channel.handle);
+            }}
+            className="flex items-center gap-2 cursor-pointer select-none"
           >
-            {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+            <div 
+              className={`h-5 w-5 rounded-md border flex items-center justify-center transition-all ${
+                isSelected 
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-sm shadow-blue-500/50' 
+                  : 'border-white/30 bg-black/40 group-hover:border-white/50'
+              }`}
+            >
+              {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+            </div>
+            <span className="text-xs font-semibold text-white/80 group-hover:text-white transition-colors">
+              Select
+            </span>
+          </label>
+        ) : (
+          <div className="flex items-center gap-1.5 text-white/40 text-xs select-none">
+            <span className="h-2 w-2 rounded-full bg-white/20"></span>
+            <span>Offline</span>
           </div>
-          <span className="text-xs font-semibold text-white/70 group-hover:text-white transition-colors">
-            Select
-          </span>
-        </label>
+        )}
 
         {/* Live Status Badge */}
         <div className="flex items-center gap-2">
           {isLive ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-500/40 shadow-sm shadow-red-500/20">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/20 border border-red-500/50 shadow-sm shadow-red-500/20">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-80"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
-              <span className="text-[11px] font-extrabold tracking-wider text-red-400">
+              <span className="text-[11px] font-black tracking-wider text-red-400">
                 LIVE
               </span>
               {viewerCount && (
@@ -79,7 +108,7 @@ export default function ChannelCard({
               )}
             </div>
           ) : (
-            <div className="px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-white/40">
+            <div className="px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] font-semibold text-white/40">
               OFFLINE
             </div>
           )}
@@ -102,7 +131,7 @@ export default function ChannelCard({
 
       {/* Middle: Channel Avatar, Handle, and Stream Title */}
       <div className="flex items-start gap-3.5 my-2">
-        {/* Avatar with dynamic glow */}
+        {/* Avatar with dynamic glow if Live */}
         <div className="relative flex-shrink-0">
           <div className={`p-0.5 rounded-full ${
             isLive 
@@ -128,7 +157,9 @@ export default function ChannelCard({
         {/* Text Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-bold text-white truncate font-display group-hover:text-blue-300 transition-colors">
+            <h3 className={`text-sm font-bold truncate font-display transition-colors ${
+              isLive ? 'text-white group-hover:text-red-300' : 'text-white/80 group-hover:text-white'
+            }`}>
               {channelName}
             </h3>
             {channel.category && (
@@ -141,8 +172,10 @@ export default function ChannelCard({
             {channel.handle}
           </p>
 
-          {/* Stream Title / Channel Description */}
-          <p className="text-xs text-white/70 mt-1.5 line-clamp-2 leading-relaxed">
+          {/* Stream Title (if Live) / Description (if Offline) */}
+          <p className={`text-xs mt-1.5 line-clamp-2 leading-relaxed ${
+            isLive ? 'text-white font-medium' : 'text-white/50'
+          }`}>
             {title}
           </p>
         </div>
@@ -150,9 +183,9 @@ export default function ChannelCard({
 
       {/* Bottom: Action Buttons */}
       <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-2">
-        {/* Watch on YouTube link */}
+        {/* Direct YouTube channel link */}
         <a
-          href={videoId ? `https://www.youtube.com/watch?v=${videoId}` : `https://www.youtube.com/${channel.handle}`}
+          href={`https://www.youtube.com/${channel.handle}`}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -162,17 +195,26 @@ export default function ChannelCard({
           <ExternalLink className="h-3 w-3" />
         </a>
 
-        {/* Quick Watch Button */}
+        {/* Action Button: "Watch Live" (if Live) or "Visit Channel" (if Offline) */}
         <button
-          onClick={() => onQuickWatch(channel.handle)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+          onClick={handleActionClick}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
             isLive
               ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-600/30'
-              : 'bg-white/[0.08] hover:bg-white/[0.15] text-white/80'
+              : 'bg-white/[0.06] hover:bg-white/[0.12] text-white/60 hover:text-white'
           }`}
         >
-          <Play className="h-3 w-3 fill-current" />
-          <span>{isLive ? 'Watch Live' : 'Open Stream'}</span>
+          {isLive ? (
+            <>
+              <Play className="h-3 w-3 fill-current" />
+              <span>Watch Live</span>
+            </>
+          ) : (
+            <>
+              <ExternalLink className="h-3 w-3" />
+              <span>Visit Channel</span>
+            </>
+          )}
         </button>
       </div>
     </div>

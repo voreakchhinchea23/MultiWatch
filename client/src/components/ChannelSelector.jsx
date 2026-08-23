@@ -53,8 +53,9 @@ export default function ChannelSelector({
     return true;
   });
 
-  const allFilteredSelected = filteredChannels.length > 0 && 
-    filteredChannels.every(ch => selectedHandles.includes(ch.handle));
+  const liveChannels = filteredChannels.filter(ch => channelsInfo[ch.handle]?.isLive);
+  const allLiveSelected = liveChannels.length > 0 && 
+    liveChannels.every(ch => selectedHandles.includes(ch.handle));
 
   return (
     <section className="max-w-7xl mx-auto px-4 py-8">
@@ -75,7 +76,7 @@ export default function ChannelSelector({
               Multi-Watch <span className="text-gradient">YouTube Live</span>
             </h1>
             <p className="text-sm sm:text-base text-white/60 mt-2 max-w-2xl leading-relaxed">
-              Watch multiple live streams concurrently with real-time live chat. Select your favorite channels from below to stream together in split screens.
+              Watch multiple live streams concurrently with real-time live chat. Select live channels below to stream together in split screens.
             </p>
           </div>
 
@@ -133,26 +134,27 @@ export default function ChannelSelector({
               </button>
             </div>
 
-            {/* Quick Select All Toggle */}
+            {/* Quick Select All Live Toggle */}
             <button
               onClick={() => {
-                if (allFilteredSelected) {
+                if (allLiveSelected) {
                   onClearSelection();
                 } else {
-                  onSelectAll(filteredChannels.map(c => c.handle));
+                  onSelectAll(liveChannels.map(c => c.handle));
                 }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-medium text-white/70 hover:text-white border border-white/[0.08] transition-colors"
+              disabled={liveChannels.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-medium text-white/70 hover:text-white border border-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {allFilteredSelected ? (
+              {allLiveSelected ? (
                 <>
                   <CheckSquare className="h-3.5 w-3.5 text-blue-400" />
-                  <span>Deselect All</span>
+                  <span>Deselect Live</span>
                 </>
               ) : (
                 <>
                   <Square className="h-3.5 w-3.5 text-white/40" />
-                  <span>Select All Visible</span>
+                  <span>Select Live ({liveChannels.length})</span>
                 </>
               )}
             </button>
