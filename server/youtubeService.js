@@ -96,6 +96,47 @@ function normalizeIdentifier(input) {
 }
 
 /**
+ * Extract the exact `ytInitialPlayerResponse` JSON object from HTML
+ */
+function extractPlayerResponse(html) {
+  const pIdx = html.indexOf('ytInitialPlayerResponse =');
+  if (pIdx === -1) return null;
+
+  const braceIdx = html.indexOf('{', pIdx);
+  if (braceIdx === -1) return null;
+
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let jsonEnd = -1;
+
+  for (let i = braceIdx; i < html.length; i++) {
+    const c = html[i];
+    if (!inStr) {
+      if (c === '{') depth++;
+      else if (c === '}') {
+        depth--;
+        if (depth === 0) {
+          jsonEnd = i;
+          break;
+        }
+      } else if (c === '"') inStr = true;
+    } else {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+    }
+  }
+
+  if (jsonEnd === -1) return null;
+  try {
+    return JSON.parse(html.substring(braceIdx, jsonEnd + 1));
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Parse YouTube HTML response and extract authoritative live stream status & video ID
  */
 function parseLiveStatusFromHtml(html, identifier) {
@@ -104,29 +145,10 @@ function parseLiveStatusFromHtml(html, identifier) {
   let liveTitle = '';
   let channelName = identifier.replace(/^@/, '');
   let channelAvatar = '';
-  let channelId = '';
+  let channelId = KNOWN_CHANNEL_IDS[identifier.toLowerCase()] || '';
   let viewerCount = null;
 
-  // 1. Authoritative Video ID from Meta Tags
-  // When a channel is live, YouTube's /live page redirects or renders with canonical/og:url pointing to watch?v=VIDEO_ID
-  const canonMatch = html.match(/<link rel="canonical" href="([^"]+)">/);
-  const ogUrlMatch = html.match(/<meta property="og:url" content="([^"]+)">/);
-  const ogVideoMatch = html.match(/<meta property="og:video:url" content="([^"]+)">/);
-  const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
-  const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
-
-  const mainUrl = (ogUrlMatch && ogUrlMatch[1]) || (canonMatch && canonMatch[1]) || '';
-  let authoritativeVideoId = null;
-
-  if (mainUrl.includes('watch?v=')) {
-    const vMatch = mainUrl.match(/watch\?v=([a-zA-Z0-9_-]{11})/);
-    if (vMatch) authoritativeVideoId = vMatch[1];
-  } else if (ogVideoMatch && ogVideoMatch[1].includes('/embed/')) {
-    const vMatch = ogVideoMatch[1].match(/\/embed\/([a-zA-Z0-9_-]{11})/);
-    if (vMatch) authoritativeVideoId = vMatch[1];
-  }
-
-  // 2. Extract Channel ID
+  // 1. Extract Channel ID from page if present
   const chMatch = html.match(/<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})">/) ||
                   html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/) ||
                   html.match(/"browseId":"(UC[a-zA-Z0-9_-]{22})"/);
@@ -138,87 +160,56 @@ function parseLiveStatusFromHtml(html, identifier) {
     }
   }
 
-  // 3. Extract Avatar & Title
-  if (ogImageMatch && ogImageMatch[1]) {
-    channelAvatar = ogImageMatch[1];
-  } else {
-    const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
-                        html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
-    if (avatarMatch) {
-      channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
+  // 2. Extract Avatar
+  const avatarMatch = html.match(/<link rel="image_src" href="([^"]+)">/) ||
+                      html.match(/"thumbnails":\[\{"url":"(https:\/\/yt3\.googleusercontent\.com\/[^"]+)"/);
+  if (avatarMatch) {
+    channelAvatar = avatarMatch[1].replace(/\\u0026/g, '&');
+  }
+
+  // 3. Extract Channel Name from Title or Metadata
+  const titleTagMatch = html.match(/<title>([^<]+)<\/title>/);
+  if (titleTagMatch) {
+    const cleanTitle = titleTagMatch[1].replace(/ - YouTube$/, '').trim();
+    if (cleanTitle && !cleanTitle.includes('404 Not Found')) {
+      channelName = cleanTitle;
     }
   }
 
-  if (ogTitleMatch && ogTitleMatch[1]) {
-    liveTitle = ogTitleMatch[1];
-  } else {
-    const titleTagMatch = html.match(/<title>([^<]+)<\/title>/);
-    if (titleTagMatch) {
-      const cleanTitle = titleTagMatch[1].replace(/ - YouTube$/, '').trim();
-      if (cleanTitle && !cleanTitle.includes('404 Not Found')) {
-        channelName = cleanTitle;
-      }
+  // 4. Primary Authoritative Detection: ytInitialPlayerResponse
+  const playerObj = extractPlayerResponse(html);
+  if (playerObj) {
+    const details = playerObj.videoDetails;
+    const micro = playerObj.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
+
+    const isLiveNow = micro?.isLiveNow === true;
+    const isLiveDetails = details?.isLive === true || details?.isLiveContent === true;
+    const hasEnd = !!micro?.endTimestamp;
+
+    // Verify channel ownership: channelId or author matches
+    const norm = identifier.toLowerCase();
+    const expectedChannelId = KNOWN_CHANNEL_IDS[norm] || channelId;
+    const channelMatches = expectedChannelId ? (details?.channelId === expectedChannelId) : true;
+
+    if (channelMatches && (isLiveNow || isLiveDetails) && !hasEnd && details?.videoId) {
+      isLive = true;
+      liveVideoId = details.videoId;
+      liveTitle = details.title || '';
+      if (details.author) channelName = details.author;
+      if (details.channelId) channelId = details.channelId;
+      viewerCount = micro?.viewerCount || details.viewCount || null;
     }
   }
 
-  // 4. Primary Detection: Find exact `ytInitialPlayerResponse =` object
-  const playerKeyword = 'ytInitialPlayerResponse =';
-  const pIdx = html.indexOf(playerKeyword);
-  if (pIdx !== -1) {
-    const braceIdx = html.indexOf('{', pIdx);
-    if (braceIdx !== -1) {
-      let depth = 0;
-      let inStr = false;
-      let esc = false;
-      let jsonEnd = -1;
-
-      for (let i = braceIdx; i < html.length; i++) {
-        const c = html[i];
-        if (!inStr) {
-          if (c === '{') depth++;
-          else if (c === '}') {
-            depth--;
-            if (depth === 0) {
-              jsonEnd = i;
-              break;
-            }
-          } else if (c === '"') inStr = true;
-        } else {
-          if (esc) esc = false;
-          else if (c === '\\') esc = true;
-          else if (c === '"') inStr = false;
-        }
-      }
-
-      if (jsonEnd !== -1) {
-        try {
-          const data = JSON.parse(html.substring(braceIdx, jsonEnd + 1));
-          const details = data.videoDetails;
-          const micro = data.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
-
-          const isLiveNow = micro?.isLiveNow === true;
-          const isLiveDetails = details?.isLive === true || details?.isLiveContent === true;
-          const hasEnd = !!micro?.endTimestamp;
-
-          // Strict validation: Only accept if this is the target channel's video, not a recommended video
-          if (details?.videoId && (authoritativeVideoId ? details.videoId === authoritativeVideoId : true)) {
-            if ((isLiveNow || isLiveDetails) && !hasEnd) {
-              isLive = true;
-              liveVideoId = details.videoId;
-              if (details.title) liveTitle = details.title;
-              if (details.author) channelName = details.author;
-              viewerCount = micro?.viewerCount || details.viewCount || null;
-            }
-          }
-        } catch (e) {}
-      }
+  // 5. Fallback: Check canonical / og:url if watch?v= is explicitly present
+  if (!isLive) {
+    const canonMatch = html.match(/href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
+    const ogUrlMatch = html.match(/content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
+    const vMatch = canonMatch || ogUrlMatch;
+    if (vMatch && !html.includes('"endTimestamp"')) {
+      isLive = true;
+      liveVideoId = vMatch[1];
     }
-  }
-
-  // 5. Fallback: If canonical/og indicates an active watch?v= live stream
-  if (!isLive && authoritativeVideoId && ogVideoMatch && !html.includes('"endTimestamp"')) {
-    isLive = true;
-    liveVideoId = authoritativeVideoId;
   }
 
   return {
