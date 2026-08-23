@@ -59,6 +59,11 @@ export default function App() {
         results.forEach(item => {
           if (item && item.identifier) {
             infoMap[item.identifier] = item;
+            infoMap[item.identifier.toLowerCase()] = item;
+            if (item.identifier.startsWith('@')) {
+              infoMap[item.identifier.substring(1)] = item;
+              infoMap[item.identifier.substring(1).toLowerCase()] = item;
+            }
           }
         });
         setChannelsInfo(prev => ({ ...prev, ...infoMap }));
