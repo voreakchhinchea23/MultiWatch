@@ -32,11 +32,16 @@ function fetchUrl(url, timeoutMs = 8000, redirectCount = 0) {
 
     const req = client.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,km;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
-        'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2OTQ0NTQ5ODQaAmVuIAEaBgiA_pauBg'
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Cookie': 'SOCS=CAESEwgDEgk2OTQ0NTQ5ODQaAmVuIAEaBgiA_pauBg; PREF=tz=Asia.Bangkok&f6=40000000&hl=en; YSC=0; VISITOR_INFO1_LIVE=1; CONSENT=PENDING+999; GPS=1'
       }
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -44,7 +49,9 @@ function fetchUrl(url, timeoutMs = 8000, redirectCount = 0) {
         if (redirectUrl.startsWith('/')) {
           redirectUrl = (isHttps ? 'https://www.youtube.com' : 'http://www.youtube.com') + redirectUrl;
         }
-        return fetchUrl(redirectUrl, timeoutMs, redirectCount + 1).then(resolve).catch(reject);
+        if (!redirectUrl.includes('consent.youtube.com') && !redirectUrl.includes('accounts.google.com')) {
+          return fetchUrl(redirectUrl, timeoutMs, redirectCount + 1).then(resolve).catch(reject);
+        }
       }
 
       let stream = res;
