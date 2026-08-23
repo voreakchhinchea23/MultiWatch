@@ -202,6 +202,29 @@ app.get('/api/live/check', async (req, res) => {
   }
 });
 
+// API: Diagnostic endpoint for live response
+app.get('/api/debug/live', async (req, res) => {
+  const { fetchUrl } = require('./youtubeService');
+  const target = req.query.handle || '@MMegamind';
+  try {
+    const response = await fetchUrl(`https://www.youtube.com/${target}/live`, 8000);
+    const html = response.body;
+    res.json({
+      url: response.url,
+      status: response.status,
+      bodyLength: html.length,
+      canonical: (html.match(/<link rel="canonical" href="([^"]+)">/) || [])[1] || null,
+      ogUrl: (html.match(/<meta property="og:url" content="([^"]+)">/) || [])[1] || null,
+      ogVideo: (html.match(/<meta property="og:video:url" content="([^"]+)">/) || [])[1] || null,
+      pIdx: html.indexOf('ytInitialPlayerResponse ='),
+      hasConsent: html.includes('consent.youtube.com') || html.includes('before you continue'),
+      titleMatch: (html.match(/<title>([^<]+)<\/title>/) || [])[1] || null
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // API: Batch check channels
 app.post('/api/live/batch', async (req, res) => {
   try {
