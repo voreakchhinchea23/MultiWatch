@@ -175,55 +175,42 @@ function parseLiveStatusFromHtml(html, identifier) {
     }
   }
 
-  // Authoritative Detection: ytInitialPlayerResponse
-  const playerObj = extractPlayerResponse(html);
-  if (playerObj) {
-    const details = playerObj.videoDetails;
-    const micro = playerObj.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
+  const pIdx = html.indexOf('ytInitialPlayerResponse =');
+  if (pIdx !== -1) {
+    // Player object exists on the page
+    const playerObj = extractPlayerResponse(html);
+    if (playerObj) {
+      const details = playerObj.videoDetails;
+      const micro = playerObj.microformat?.playerMicroformatRenderer?.liveBroadcastDetails;
 
-    const isLiveNow = micro?.isLiveNow === true;
-    const isLiveDetails = details?.isLive === true || details?.isLiveContent === true;
-    const hasEnd = !!micro?.endTimestamp;
+      const isLiveNow = micro?.isLiveNow === true;
+      const isLiveDetails = details?.isLive === true || details?.isLiveContent === true;
+      const hasEnd = !!micro?.endTimestamp;
 
-    if ((isLiveNow || isLiveDetails) && !hasEnd && details?.videoId) {
-      isLive = true;
-      liveVideoId = details.videoId;
-      liveTitle = details.title || '';
-      if (details.author) channelName = details.author;
-      if (details.channelId) channelId = details.channelId;
-      viewerCount = micro?.viewerCount || details.viewCount || null;
-    }
-  }
-
-  // Secondary Fallback: Scoped regex inside ytInitialPlayerResponse snippet
-  if (!isLive) {
-    const pIdx = html.indexOf('ytInitialPlayerResponse =');
-    if (pIdx !== -1) {
-      const playerSnippet = html.substring(pIdx, pIdx + 20000);
-      const isLiveSnippet = playerSnippet.includes('"isLive":true') || playerSnippet.includes('"isLiveNow":true');
-      const hasEnd = playerSnippet.includes('"endTimestamp"');
-      const vMatch = playerSnippet.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      const tMatch = playerSnippet.match(/"title":"([^"]+)"/);
-      const aMatch = playerSnippet.match(/"author":"([^"]+)"/);
-
-      if (isLiveSnippet && !hasEnd && vMatch) {
+      if ((isLiveNow || isLiveDetails) && !hasEnd && details?.videoId) {
         isLive = true;
-        liveVideoId = vMatch[1];
-        if (tMatch) liveTitle = tMatch[1];
-        if (aMatch) channelName = aMatch[1];
+        liveVideoId = details.videoId;
+        if (details.title) liveTitle = details.title;
+        if (details.author) channelName = details.author;
+        if (details.channelId) channelId = details.channelId;
+        viewerCount = micro?.viewerCount || details.viewCount || null;
       }
     }
-  }
 
-  // Tertiary Fallback: Canonical / OG metadata check for live watch page
-  if (!isLive) {
-    const vMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                   html.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                   html.match(/<meta property="og:video:url" content="https:\/\/www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})">/) ||
-                   html.match(/href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})"/);
-    if (vMatch && !html.includes('"endTimestamp"')) {
-      isLive = true;
-      liveVideoId = vMatch[1];
+    // If playabilityStatus is LOGIN_REQUIRED or videoDetails was gated, extract authoritative video ID from <head>
+    if (!isLive) {
+      const headEnd = html.indexOf('</head>');
+      const headSection = headEnd !== -1 ? html.substring(0, headEnd) : html.substring(0, 15000);
+
+      const vMatch = headSection.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
+                     headSection.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
+                     headSection.match(/<meta property="og:video:url" content="https:\/\/www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})">/) ||
+                     headSection.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
+
+      if (vMatch) {
+        isLive = true;
+        liveVideoId = vMatch[1];
+      }
     }
   }
 
