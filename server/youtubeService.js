@@ -1,5 +1,6 @@
 const https = require('https');
 const http = require('http');
+const zlib = require('zlib');
 
 // In-memory cache with 20-second TTL
 const cache = new Map();
@@ -34,6 +35,7 @@ function fetchUrl(url, timeoutMs = 8000, redirectCount = 0) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9,km;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
         'Cookie': 'CONSENT=YES+cb; SOCS=CAESEwgDEgk2OTQ0NTQ5ODQaAmVuIAEaBgiA_pauBg'
       }
     }, (res) => {
@@ -45,9 +47,20 @@ function fetchUrl(url, timeoutMs = 8000, redirectCount = 0) {
         return fetchUrl(redirectUrl, timeoutMs, redirectCount + 1).then(resolve).catch(reject);
       }
 
+      let stream = res;
+      const encoding = res.headers['content-encoding'];
+      if (encoding === 'gzip') {
+        stream = res.pipe(zlib.createGunzip());
+      } else if (encoding === 'deflate') {
+        stream = res.pipe(zlib.createInflate());
+      } else if (encoding === 'br') {
+        stream = res.pipe(zlib.createBrotliDecompress());
+      }
+
       let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => resolve({ url: res.headers.location || url, status: res.statusCode, body: data }));
+      stream.on('data', chunk => { data += chunk.toString('utf8'); });
+      stream.on('end', () => resolve({ url: res.headers.location || url, status: res.statusCode, body: data }));
+      stream.on('error', reject);
     });
 
     req.on('error', reject);
