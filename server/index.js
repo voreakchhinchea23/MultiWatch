@@ -202,52 +202,6 @@ app.get('/api/live/check', async (req, res) => {
   }
 });
 
-// Diagnostic route
-app.get('/api/raw-check', async (req, res) => {
-  const { fetchUrl } = require('./youtubeService');
-  const target = req.query.handle || '@MMegamind';
-  try {
-    const r = await fetchUrl(`https://www.youtube.com/${target}/live`, 8000);
-    const html = r.body;
-    const pIdx = html.indexOf('ytInitialPlayerResponse =');
-    let playerObj = null;
-    if (pIdx !== -1) {
-      const braceIdx = html.indexOf('{', pIdx);
-      let depth = 0, inStr = false, esc = false, jsonEnd = -1;
-      for (let i = braceIdx; i < html.length; i++) {
-        const c = html[i];
-        if (!inStr) {
-          if (c === '{') depth++;
-          else if (c === '}') { depth--; if (depth === 0) { jsonEnd = i; break; } }
-          else if (c === '"') inStr = true;
-        } else {
-          if (esc) esc = false;
-          else if (c === '\\') esc = true;
-          else if (c === '"') inStr = false;
-        }
-      }
-      if (jsonEnd !== -1) {
-        try { playerObj = JSON.parse(html.substring(braceIdx, jsonEnd + 1)); } catch (e) {}
-      }
-    }
-    res.json({
-      url: r.url,
-      bodyLength: html.length,
-      pIdx,
-      videoDetails: playerObj?.videoDetails ? {
-        videoId: playerObj.videoDetails.videoId,
-        title: playerObj.videoDetails.title,
-        author: playerObj.videoDetails.author,
-        isLive: playerObj.videoDetails.isLive,
-        isLiveContent: playerObj.videoDetails.isLiveContent
-      } : null,
-      microformat: playerObj?.microformat?.playerMicroformatRenderer?.liveBroadcastDetails || null,
-      playabilityStatus: playerObj?.playabilityStatus?.status || null
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
 
 // API: Batch check channels
 app.post('/api/live/batch', async (req, res) => {
