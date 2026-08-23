@@ -138,6 +138,29 @@ function extractPlayerResponse(html) {
   }
 }
 
+function extractInitialData(html) {
+  const dIdx = html.indexOf('ytInitialData =');
+  if (dIdx === -1) return null;
+  const braceIdx = html.indexOf('{', dIdx);
+  if (braceIdx === -1) return null;
+
+  let depth = 0, inStr = false, esc = false, jsonEnd = -1;
+  for (let i = braceIdx; i < html.length; i++) {
+    const c = html[i];
+    if (!inStr) {
+      if (c === '{') depth++;
+      else if (c === '}') { depth--; if (depth === 0) { jsonEnd = i; break; } }
+      else if (c === '"') inStr = true;
+    } else {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+    }
+  }
+  if (jsonEnd === -1) return null;
+  try { return JSON.parse(html.substring(braceIdx, jsonEnd + 1)); } catch (e) { return null; }
+}
+
 function parseLiveStatusFromHtml(html, identifier) {
   let isLive = false;
   let liveVideoId = null;
@@ -175,9 +198,44 @@ function parseLiveStatusFromHtml(html, identifier) {
     }
   }
 
-  const pIdx = html.indexOf('ytInitialPlayerResponse =');
-  if (pIdx !== -1) {
-    // Player object exists on the page
+  // 1. Authoritative check via ytInitialData /streams tab content
+  const initialData = extractInitialData(html);
+  if (initialData) {
+    const tabs = initialData.contents?.twoColumnBrowseResultsRenderer?.tabs;
+    const streamsTab = tabs?.find(t => t.tabRenderer?.title === 'Live' || t.tabRenderer?.endpoint?.commandMetadata?.webCommandMetadata?.url?.includes('/streams'));
+    const content = streamsTab?.tabRenderer?.content?.richGridRenderer?.contents;
+
+    if (content && content.length > 0) {
+      const firstItem = content[0]?.richItemRenderer?.content;
+      const lockup = firstItem?.lockupViewModel;
+      const videoRenderer = firstItem?.videoRenderer || firstItem?.gridVideoRenderer;
+
+      if (lockup) {
+        const overlaysStr = JSON.stringify(lockup.contentImage?.thumbnailViewModel?.overlays || []);
+        const isLiveBadge = overlaysStr.includes('THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE') || overlaysStr.includes('"text":"LIVE"');
+        if (isLiveBadge && lockup.contentId) {
+          isLive = true;
+          liveVideoId = lockup.contentId;
+          liveTitle = lockup.metadata?.lockupMetadataViewModel?.title?.content || '';
+          const metaRows = lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
+          const viewText = metaRows[0]?.metadataParts?.[0]?.text?.content || '';
+          const vMatch = viewText.match(/([\d.,KMBkmb]+)\s+watching/i);
+          if (vMatch) viewerCount = vMatch[1];
+        }
+      } else if (videoRenderer) {
+        const badgesStr = JSON.stringify(videoRenderer.badges || videoRenderer.thumbnailOverlays || []);
+        const isLiveBadge = badgesStr.includes('BADGE_STYLE_TYPE_LIVE_NOW') || badgesStr.includes('"LIVE"');
+        if (isLiveBadge && videoRenderer.videoId) {
+          isLive = true;
+          liveVideoId = videoRenderer.videoId;
+          liveTitle = videoRenderer.title?.runs?.[0]?.text || '';
+        }
+      }
+    }
+  }
+
+  // 2. Secondary Authoritative check via ytInitialPlayerResponse
+  if (!isLive) {
     const playerObj = extractPlayerResponse(html);
     if (playerObj) {
       const details = playerObj.videoDetails;
@@ -196,26 +254,13 @@ function parseLiveStatusFromHtml(html, identifier) {
         viewerCount = micro?.viewerCount || details.viewCount || null;
       }
     }
-
-    // If playabilityStatus is LOGIN_REQUIRED or videoDetails was gated, extract live video ID from the page
-    if (!isLive) {
-      const vMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                     html.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                     html.match(/<meta property="og:video:url" content="https:\/\/www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})">/) ||
-                     html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-
-      if (vMatch) {
-        isLive = true;
-        liveVideoId = vMatch[1];
-      }
-    }
   }
 
   return {
     identifier,
     isLive,
     videoId: isLive ? liveVideoId : null,
-    title: isLive ? liveTitle : (channelName || identifier),
+    title: isLive ? (liveTitle || channelName) : (channelName || identifier),
     channelName: channelName || identifier.replace(/^@/, ''),
     channelAvatar: channelAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(identifier)}`,
     channelId: channelId || KNOWN_CHANNEL_IDS[identifier.toLowerCase()] || '',
@@ -257,14 +302,27 @@ async function getChannelLiveInfo(rawIdentifier) {
   }
 
   try {
-    const targetUrl = identifier.startsWith('UC')
-      ? `https://www.youtube.com/channel/${identifier}/live`
-      : `https://www.youtube.com/${identifier}/live`;
+    const streamsUrl = identifier.startsWith('UC')
+      ? `https://www.youtube.com/channel/${identifier}/streams`
+      : `https://www.youtube.com/${identifier}/streams`;
 
-    const res = await fetchUrl(targetUrl, 8000);
-    const parsed = parseLiveStatusFromHtml(res.body, identifier);
+    const res = await fetchUrl(streamsUrl, 8000);
+    let parsed = parseLiveStatusFromHtml(res.body, identifier);
 
-    // Only cache valid results
+    // If not detected on /streams tab, try /live endpoint as fallback
+    if (!parsed.isLive) {
+      const liveUrl = identifier.startsWith('UC')
+        ? `https://www.youtube.com/channel/${identifier}/live`
+        : `https://www.youtube.com/${identifier}/live`;
+      try {
+        const liveRes = await fetchUrl(liveUrl, 8000);
+        const liveParsed = parseLiveStatusFromHtml(liveRes.body, identifier);
+        if (liveParsed.isLive) {
+          parsed = liveParsed;
+        }
+      } catch (e) {}
+    }
+
     cache.set(identifier, { timestamp: Date.now(), data: parsed });
     return parsed;
 
