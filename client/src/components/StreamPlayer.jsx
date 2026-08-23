@@ -223,34 +223,44 @@ export default function StreamPlayer({
 
   const activeQualityOption = QUALITY_OPTIONS.find(q => q.value === currentQuality) || QUALITY_OPTIONS[0];
 
+  // Overlay is active when hovered, or when any menu/slider is opened
+  const isControlsVisible = isHovered || isQualityOpen || isSpeedOpen || isSliderOpen;
+
   return (
     <div 
       ref={containerRef}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        // If dropdowns are open, don't close them instantly on leave, but hide hovered flag
+        setIsHovered(false);
+      }}
       className={`relative flex flex-col w-full h-full rounded-2xl overflow-hidden bg-black border transition-all duration-300 group shadow-2xl ${
         isPrimary 
           ? 'border-blue-500/70 shadow-blue-500/15 ring-1 ring-blue-500/30' 
           : 'border-white/[0.12] hover:border-white/[0.3]'
       }`}
     >
-      {/* Top Floating Control Overlay */}
-      <div className={`absolute top-0 inset-x-0 z-30 flex items-center justify-between p-2 sm:p-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent transition-opacity duration-200 ${
-        isHovered || isQualityOpen || isSpeedOpen || isSliderOpen ? 'opacity-100' : 'opacity-85 sm:opacity-95'
-      }`}>
+      {/* Top Floating Control Overlay - HIDE BY DEFAULT, SHOW ONLY ON HOVER OR ACTIVE MENU */}
+      <div 
+        className={`absolute top-0 inset-x-0 z-30 flex items-center justify-between p-2 sm:p-3 bg-gradient-to-b from-black/95 via-black/75 to-transparent transition-all duration-300 ease-out ${
+          isControlsVisible 
+            ? 'opacity-100 translate-y-0 pointer-events-auto' 
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
         {/* Left: Streamer Avatar, Channel Name, Stream Title & Viewer Badge */}
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 drop-shadow-md pr-2">
           <div className="relative flex-shrink-0">
             <img
               src={avatar}
               alt={channelName}
-              className="h-8 w-8 rounded-full object-cover border border-white/40 shadow-md bg-slate-800"
+              className="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover border border-white/40 shadow-md bg-slate-800"
               onError={(e) => {
                 e.target.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(channel.handle)}`;
               }}
             />
             {isLive && (
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-600 border-2 border-black"></span>
+              <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-red-600 border-2 border-black"></span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -259,17 +269,17 @@ export default function StreamPlayer({
                 {channelName}
               </span>
               {isLive ? (
-                <span className="flex items-center gap-1 text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-red-600/90 text-white shadow-sm flex-shrink-0">
+                <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-red-600/90 text-white shadow-sm flex-shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
                   LIVE {viewerCount && `(${formatViewerCount(viewerCount)})`}
                 </span>
               ) : (
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-white/70 border border-white/10 backdrop-blur-sm flex-shrink-0 font-medium">
+                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-white/70 border border-white/10 backdrop-blur-sm flex-shrink-0 font-medium">
                   OFFLINE
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-white/70 truncate -mt-0.5">
+            <p className="text-[10px] sm:text-[11px] text-white/70 truncate -mt-0.5">
               {title}
             </p>
           </div>
@@ -288,15 +298,15 @@ export default function StreamPlayer({
                 setIsSliderOpen(false);
               }}
               title="Change Video Quality"
-              className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] font-mono font-bold transition-all border shadow-sm backdrop-blur-xl ${
+              className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl text-[10px] sm:text-[11px] font-mono font-bold transition-all border shadow-sm backdrop-blur-xl ${
                 isQualityOpen
                   ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/40'
                   : currentQuality !== 'auto'
                   ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
-                  : 'bg-black/60 text-white/80 hover:text-white hover:bg-black/80 border-white/10'
+                  : 'bg-black/70 text-white/90 hover:text-white hover:bg-black/90 border-white/15'
               }`}
             >
-              <Sparkles className="h-3 w-3 text-blue-400" />
+              <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-400" />
               <span>{activeQualityOption.badge}</span>
               <ChevronDown className={`h-2.5 w-2.5 transition-transform ${isQualityOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -347,15 +357,15 @@ export default function StreamPlayer({
                 setIsSliderOpen(false);
               }}
               title="Adjust Playback Speed"
-              className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] font-mono font-bold transition-all border shadow-sm backdrop-blur-xl ${
+              className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl text-[10px] sm:text-[11px] font-mono font-bold transition-all border shadow-sm backdrop-blur-xl ${
                 isSpeedOpen
                   ? 'bg-purple-600 text-white border-purple-400 shadow-purple-500/40'
                   : currentSpeed !== 1
                   ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 hover:bg-purple-500/30'
-                  : 'bg-black/60 text-white/80 hover:text-white hover:bg-black/80 border-white/10'
+                  : 'bg-black/70 text-white/90 hover:text-white hover:bg-black/90 border-white/15'
               }`}
             >
-              <Gauge className="h-3 w-3 text-purple-400" />
+              <Gauge className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
               <span>{currentSpeed}x</span>
               <ChevronDown className={`h-2.5 w-2.5 transition-transform ${isSpeedOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -425,7 +435,7 @@ export default function StreamPlayer({
                   setIsSpeedOpen(false);
                 }}
                 title="Click to adjust volume slider"
-                className="pr-2 pl-0.5 py-1 text-[11px] font-mono font-bold text-white/90 hover:text-white"
+                className="pr-1.5 sm:pr-2 pl-0.5 py-1 text-[10px] sm:text-[11px] font-mono font-bold text-white/90 hover:text-white"
               >
                 {effectiveMuted ? '0%' : `${volume}%`}
               </button>
@@ -445,7 +455,7 @@ export default function StreamPlayer({
                   }}
                   className="w-16 sm:w-24 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none"
                 />
-                <span className="text-[11px] font-mono font-bold text-white min-w-[28px] text-right">
+                <span className="text-[10px] sm:text-[11px] font-mono font-bold text-white min-w-[28px] text-right">
                   {effectiveMuted ? '0%' : `${volume}%`}
                 </span>
                 <button
@@ -465,9 +475,9 @@ export default function StreamPlayer({
             <button
               onClick={() => onMakePrimary(channel.handle)}
               title="Set as Main Big Screen"
-              className="flex items-center gap-1 px-2 py-1 rounded-xl bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-bold shadow-md backdrop-blur-md transition-all active:scale-95 border border-blue-400/30"
+              className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] sm:text-xs font-bold shadow-md backdrop-blur-md transition-all active:scale-95 border border-blue-400/30"
             >
-              <ArrowUpRight className="h-3.5 w-3.5" />
+              <ArrowUpRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className="hidden sm:inline">Make Main</span>
             </button>
           )}
@@ -479,17 +489,17 @@ export default function StreamPlayer({
             className={`p-1.5 rounded-xl backdrop-blur-md transition-colors flex items-center gap-1 text-xs font-semibold border ${
               isChatOpen 
                 ? 'bg-blue-600 text-white border-blue-400 shadow-md' 
-                : 'bg-black/60 hover:bg-black/80 text-white/70 hover:text-white border-white/10'
+                : 'bg-black/70 hover:bg-black/90 text-white/70 hover:text-white border-white/15'
             }`}
           >
-            <MessageSquare className="h-3.5 w-3.5" />
+            <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
 
           {/* 6. FULLSCREEN PLAYER */}
           <button
             onClick={handleToggleFullscreen}
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Player"}
-            className="p-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white/70 hover:text-white border border-white/10 backdrop-blur-md transition-colors hidden sm:flex"
+            className="p-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white/70 hover:text-white border border-white/15 backdrop-blur-md transition-colors hidden sm:flex"
           >
             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
@@ -498,9 +508,9 @@ export default function StreamPlayer({
           <button
             onClick={handleReload}
             title="Reload player"
-            className="p-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white/70 hover:text-white border border-white/10 backdrop-blur-md transition-colors"
+            className="p-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white/70 hover:text-white border border-white/15 backdrop-blur-md transition-colors"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
 
           {/* 8. OPEN ON YOUTUBE */}
@@ -509,7 +519,7 @@ export default function StreamPlayer({
             target="_blank"
             rel="noopener noreferrer"
             title="Open in YouTube"
-            className="p-1.5 rounded-xl bg-black/60 hover:bg-black/80 text-white/70 hover:text-white border border-white/10 backdrop-blur-md transition-colors hidden sm:flex"
+            className="p-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white/70 hover:text-white border border-white/15 backdrop-blur-md transition-colors hidden sm:flex"
           >
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
@@ -518,9 +528,9 @@ export default function StreamPlayer({
           <button
             onClick={() => onRemove(channel.handle)}
             title="Remove stream"
-            className="p-1.5 rounded-xl bg-black/60 hover:bg-red-600/80 text-white/70 hover:text-white border border-white/10 backdrop-blur-md transition-colors"
+            className="p-1.5 rounded-xl bg-black/70 hover:bg-red-600/80 text-white/70 hover:text-white border border-white/15 backdrop-blur-md transition-colors"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
         </div>
       </div>

@@ -72,6 +72,12 @@
   -webkit-text-fill-color: transparent;
 }
 
+.text-gradient-pink {
+  background: linear-gradient(135deg, #f472b6 0%, #c084fc 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 /* Glowing dot animation */
 .live-pulse {
   position: relative;
@@ -87,6 +93,30 @@
   background: rgba(239, 68, 68, 0.6);
   animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
   z-index: -1;
+}
+
+/* Cute Floating Emoji Burst Animation */
+@keyframes floatUpCute {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.7) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-40px) scale(1.2) rotate(8deg);
+  }
+  70% {
+    opacity: 0.85;
+    transform: translateY(-110px) scale(1.1) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-190px) scale(1.3) rotate(15deg);
+  }
+}
+
+.animate-float-up {
+  animation: floatUpCute 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* Aspect ratio 16:9 container */
