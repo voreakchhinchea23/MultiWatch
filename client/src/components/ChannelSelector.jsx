@@ -53,6 +53,35 @@ export default function ChannelSelector({
     return true;
   });
 
+  // Sort channels: Live streams at the moment ALWAYS to the top, offline channels to the bottom.
+  // Among live streams: sort by highest viewer count first.
+  const sortedChannels = [...filteredChannels].sort((a, b) => {
+    const infoA = channelsInfo[a.handle];
+    const infoB = channelsInfo[b.handle];
+
+    const isLiveA = !!infoA?.isLive;
+    const isLiveB = !!infoB?.isLive;
+
+    // 1. Live channels come first
+    if (isLiveA && !isLiveB) return -1;
+    if (!isLiveA && isLiveB) return 1;
+
+    // 2. If both are live, sort by highest viewer count descending
+    if (isLiveA && isLiveB) {
+      const viewersA = typeof infoA?.viewerCount === 'number' ? infoA.viewerCount : 0;
+      const viewersB = typeof infoB?.viewerCount === 'number' ? infoB.viewerCount : 0;
+      if (viewersB !== viewersA) {
+        return viewersB - viewersA;
+      }
+    }
+
+    // 3. Keep featured/default preference for offline channels
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+
+    return 0;
+  });
+
   const liveChannels = filteredChannels.filter(ch => channelsInfo[ch.handle]?.isLive);
   const allLiveSelected = liveChannels.length > 0 && 
     liveChannels.every(ch => selectedHandles.includes(ch.handle));
@@ -194,9 +223,9 @@ export default function ChannelSelector({
       </div>
 
       {/* Channel Grid */}
-      {filteredChannels.length > 0 ? (
+      {sortedChannels.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {filteredChannels.map((channel) => (
+          {sortedChannels.map((channel) => (
             <ChannelCard
               key={channel.handle}
               channel={channel}
