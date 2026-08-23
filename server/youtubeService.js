@@ -197,15 +197,12 @@ function parseLiveStatusFromHtml(html, identifier) {
       }
     }
 
-    // If playabilityStatus is LOGIN_REQUIRED or videoDetails was gated, extract authoritative video ID from <head>
+    // If playabilityStatus is LOGIN_REQUIRED or videoDetails was gated, extract live video ID from the page
     if (!isLive) {
-      const headEnd = html.indexOf('</head>');
-      const headSection = headEnd !== -1 ? html.substring(0, headEnd) : html.substring(0, 15000);
-
-      const vMatch = headSection.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                     headSection.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
-                     headSection.match(/<meta property="og:video:url" content="https:\/\/www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})">/) ||
-                     headSection.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
+      const vMatch = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
+                     html.match(/<meta property="og:url" content="https:\/\/www\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})">/) ||
+                     html.match(/<meta property="og:video:url" content="https:\/\/www\.youtube\.com\/embed\/([a-zA-Z0-9_-]{11})">/) ||
+                     html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
 
       if (vMatch) {
         isLive = true;
