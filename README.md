@@ -8,7 +8,7 @@
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
-**Watch multiple YouTube live streams concurrently in customizable split-screen layouts with synchronized dark live chat, real-time live detection, and an integrated multi-stream audio mixer.**
+**Watch multiple YouTube live streams concurrently in customizable split-screen layouts with video quality control, playback speed adjustment, synchronized dark live chat, real-time live detection, and an integrated multi-stream audio mixer.**
 
 🌐 **Live Demo:** [https://multi-watches.vercel.app](https://multi-watches.vercel.app)
 
@@ -19,19 +19,27 @@
 ## ✨ Features
 
 - 🔴 **Real-Time Live Stream Auto-Detection**: Instant live broadcast status resolution without requiring YouTube API keys or quota limits.
+- ⚡ **Video Quality Control**:
+  - Per-stream quality switcher (`Auto`, `1080p HD`, `720p HD`, `480p`, `360p`, `240p`, `144p`).
+  - **Global Quality Sync**: 1-click sync across all streams (`Auto`, `1080p Full HD`, `720p HD`, `480p SD`, `360p Saver`, `Smart Focus` [Main 1080p + Subs 360p]).
+- ⏱️ **Playback Speed Control**:
+  - Per-stream and global speed controls (`0.25x`, `0.5x`, `0.75x`, `1.0x Normal`, `1.25x`, `1.5x`, `1.75x`, `2.0x`).
 - 🎚️ **Individual Stream Volume Sliders & Audio Mixer**:
   - Fine-tune volume levels (0% – 100%) for each stream independently.
   - **"Chill Mode" Preset**: Automatically sets your primary gaming stream to 100% and softens background music/lofi streams to 20%.
   - Global Mute / Unmute and Audio Focus.
-- 🖥️ **Loffy Store-style Stage Layout**:
-  - **Stage View**: 1 Big primary main screen on top with sub-screens in a bottom row.
+- 🖥️ **Flexible Multi-Screen Layouts**:
+  - **Stage View**: 1 Big primary main screen on top with sub-screens in a bottom row (Loffy Store style).
+  - **Theater Side View**: 1 Big primary screen on the left with sub-screens stacked in a right column.
   - **Grid View**: Equal split responsive multi-stream layout.
   - **1-Click "Make Main"**: Swap any background stream into the primary stage instantly.
+  - **Fullscreen**: Per-player fullscreen or room-wide multi-watch fullscreen.
 - 💬 **Dark Mode Embedded Live Chat**:
   - Native YouTube dark live chat side-panel with channel switcher pills.
   - 1-click popout window mode.
 - ➕ **Dynamic Channel Manager**:
   - Add any YouTube channel by URL, `@handle`, or Channel ID.
+  - Live video thumbnail preview cards with real-time viewer badges.
   - Persistent storage in both browser `localStorage` and `channels.json`.
 - 🎨 **Modern Dark Cyberpunk Aesthetic**: Glassmorphism cards, glowing pulse indicators, smooth hover animations, and responsive mobile-to-desktop design.
 
@@ -78,9 +86,9 @@ MultiWatch/
 │   │   ├── components/
 │   │   │   ├── Navbar.jsx            # Top branding & global search
 │   │   │   ├── ChannelSelector.jsx   # Channel grid & live filters
-│   │   │   ├── ChannelCard.jsx       # Stream card with status badge
-│   │   │   ├── MultiStreamViewer.jsx # Multi-stream stage & mixer
-│   │   │   ├── StreamPlayer.jsx      # Video player with volume controls
+│   │   │   ├── ChannelCard.jsx       # Stream card with thumbnail banner & status badge
+│   │   │   ├── MultiStreamViewer.jsx # Multi-stream stage, quality/speed sync & mixer
+│   │   │   ├── StreamPlayer.jsx      # Video player with Quality, Speed & Volume controls
 │   │   │   ├── LiveChatPanel.jsx     # Dark mode YouTube live chat
 │   │   │   ├── AddChannelModal.jsx   # Add custom channels modal
 │   │   │   └── Footer.jsx            # Footer
