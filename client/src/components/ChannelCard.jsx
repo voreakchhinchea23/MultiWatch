@@ -77,7 +77,7 @@ export default function ChannelCard({
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600/90 backdrop-blur-md text-white shadow-md">
               <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span>
               <span className="text-[10px] font-black tracking-wider">LIVE</span>
-              {viewerCount && (
+              {viewerCount && formatViewerCount(viewerCount) && (
                 <>
                   <span className="text-white/40 text-[10px]">•</span>
                   <span className="flex items-center gap-1 text-[10px] font-bold">

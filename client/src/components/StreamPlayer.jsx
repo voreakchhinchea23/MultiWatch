@@ -271,7 +271,7 @@ export default function StreamPlayer({
               {isLive ? (
                 <span className="flex items-center gap-1 text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-red-600/90 text-white shadow-sm flex-shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
-                  LIVE {viewerCount && `(${formatViewerCount(viewerCount)})`}
+                  LIVE {viewerCount && formatViewerCount(viewerCount) ? `(${formatViewerCount(viewerCount)})` : ''}
                 </span>
               ) : (
                 <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-white/70 border border-white/10 backdrop-blur-sm flex-shrink-0 font-medium">

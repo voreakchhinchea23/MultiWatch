@@ -217,10 +217,20 @@ function parseLiveStatusFromHtml(html, identifier) {
           isLive = true;
           liveVideoId = lockup.contentId;
           liveTitle = lockup.metadata?.lockupMetadataViewModel?.title?.content || '';
+          
           const metaRows = lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
-          const viewText = metaRows[0]?.metadataParts?.[0]?.text?.content || '';
-          const vMatch = viewText.match(/([\d.,KMBkmb]+)\s+watching/i);
-          if (vMatch) viewerCount = vMatch[1];
+          for (const row of metaRows) {
+            for (const part of (row.metadataParts || [])) {
+              const text = part.text?.content || '';
+              const vMatch = text.match(/([\d.,]+\s*[KMBkmb]?)\s*(?:watching|viewers|concurrent|listening)/i) ||
+                             text.match(/^([\d.,]+\s*[KMBkmb])$/i);
+              if (vMatch) {
+                viewerCount = vMatch[1].trim();
+                break;
+              }
+            }
+            if (viewerCount) break;
+          }
         }
       } else if (videoRenderer) {
         const badgesStr = JSON.stringify(videoRenderer.badges || videoRenderer.thumbnailOverlays || []);
@@ -228,14 +238,24 @@ function parseLiveStatusFromHtml(html, identifier) {
         if (isLiveBadge && videoRenderer.videoId) {
           isLive = true;
           liveVideoId = videoRenderer.videoId;
-          liveTitle = videoRenderer.title?.runs?.[0]?.text || '';
+          liveTitle = videoRenderer.title?.runs?.[0]?.text || videoRenderer.title?.simpleText || '';
+
+          const viewText = videoRenderer.viewCountText?.runs?.map(r => r.text).join('') ||
+                           videoRenderer.viewCountText?.simpleText ||
+                           videoRenderer.shortViewCountText?.runs?.map(r => r.text).join('') ||
+                           videoRenderer.shortViewCountText?.simpleText || '';
+          const vMatch = viewText.match(/([\d.,]+\s*[KMBkmb]?)\s*(?:watching|viewers|concurrent|listening)/i) ||
+                         viewText.match(/^([\d.,]+\s*[KMBkmb])$/i);
+          if (vMatch) {
+            viewerCount = vMatch[1].trim();
+          }
         }
       }
     }
   }
 
   // 2. Secondary Authoritative check via ytInitialPlayerResponse
-  if (!isLive) {
+  if (!isLive || !viewerCount) {
     const playerObj = extractPlayerResponse(html);
     if (playerObj) {
       const details = playerObj.videoDetails;
@@ -245,13 +265,16 @@ function parseLiveStatusFromHtml(html, identifier) {
       const isLiveDetails = details?.isLive === true || details?.isLiveContent === true;
       const hasEnd = !!micro?.endTimestamp;
 
-      if ((isLiveNow || isLiveDetails) && !hasEnd && details?.videoId) {
+      if (!isLive && (isLiveNow || isLiveDetails) && !hasEnd && details?.videoId) {
         isLive = true;
         liveVideoId = details.videoId;
         if (details.title) liveTitle = details.title;
         if (details.author) channelName = details.author;
         if (details.channelId) channelId = details.channelId;
-        viewerCount = micro?.viewerCount || details.viewCount || null;
+      }
+
+      if (isLive && !viewerCount) {
+        viewerCount = micro?.viewerCount || details?.viewCount || null;
       }
     }
   }

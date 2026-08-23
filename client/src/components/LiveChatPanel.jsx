@@ -265,7 +265,7 @@ export default function LiveChatPanel({
                 <p className="text-xs text-blue-400 font-mono">
                   {currentStream?.handle}
                 </p>
-                {viewerCount && (
+                {viewerCount && formatViewerCount(viewerCount) && (
                   <p className="text-xs text-white/70 flex items-center gap-1 mt-1 font-medium">
                     <Eye className="h-3.5 w-3.5 text-red-400" />
                     <span>{formatViewerCount(viewerCount)} viewers watching</span>

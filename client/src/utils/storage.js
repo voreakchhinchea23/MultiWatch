@@ -130,14 +130,69 @@ export function saveChannels(channels) {
 }
 
 export function formatViewerCount(count) {
-  if (!count) return null;
-  const num = typeof count === 'string' ? parseInt(count.replace(/,/g, ''), 10) : count;
-  if (isNaN(num)) return count;
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
+  if (count === null || count === undefined || count === '') return null;
+
+  // If number
+  if (typeof count === 'number') {
+    if (isNaN(count) || count < 0) return null;
+    if (count >= 1000000000) {
+      return (count / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+    }
+    if (count >= 1000000) {
+      return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    }
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    }
+    return count.toLocaleString();
   }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
+
+  const str = String(count).trim();
+  if (!str) return null;
+
+  // If string already formatted with K, M, B (e.g., "1K", "1.1K", "10.5K", "1.2M", "1.5B", "1.1K watching")
+  const unitMatch = str.match(/^([\d.,]+)\s*([kmbKMB])(?:\s*(?:watching|viewers|concurrent|listening))?$/i) ||
+                    str.match(/([\d.,]+)\s*([kmbKMB])/i);
+  if (unitMatch) {
+    const rawNum = parseFloat(unitMatch[1].replace(/,/g, ''));
+    const unit = unitMatch[2].toUpperCase();
+    if (!isNaN(rawNum)) {
+      let multiplier = 1;
+      if (unit === 'K') multiplier = 1000;
+      else if (unit === 'M') multiplier = 1000000;
+      else if (unit === 'B') multiplier = 1000000000;
+
+      const total = rawNum * multiplier;
+      if (total >= 1000000000) {
+        return (total / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+      }
+      if (total >= 1000000) {
+        return (total / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      }
+      if (total >= 1000) {
+        return (total / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      }
+      return Math.round(total).toLocaleString();
+    }
   }
-  return num.toLocaleString();
+
+  // Pure numeric or comma-separated string, e.g. "1,200", "1000", "500", "1234 watching"
+  const numericMatch = str.match(/^([\d.,]+)/);
+  if (numericMatch) {
+    const num = parseFloat(numericMatch[1].replace(/,/g, ''));
+    if (!isNaN(num)) {
+      if (num >= 1000000000) {
+        return (num / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+      }
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      }
+      if (num >= 1000) {
+        return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      }
+      return Math.round(num).toLocaleString();
+    }
+  }
+
+  return str;
 }
