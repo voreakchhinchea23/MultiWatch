@@ -52,20 +52,20 @@ export const INITIAL_DEFAULT_CHANNELS = [
   {
     id: "@KhmerGamer",
     handle: "@KhmerGamer",
-    name: "TK KalongBek",
+    name: "បងធីខេ Bong TK",
     category: "Khmer Streamer",
-    description: "7 Days to Die & gaming",
+    description: "Magic Chess & live gaming",
     isDefault: true,
-    channelId: "UC6Qvs3rKLF2IA1TVEeHn08Q"
+    channelId: "UCoM0QAYjxSNcDR-2TnnYvkA"
   },
   {
     id: "@MrKmav",
     handle: "@MrKmav",
-    name: "ds - ឌីអេស",
+    name: "Mr Kmav",
     category: "Khmer Streamer",
-    description: "Gaming & automotive entertainment",
+    description: "Khmer gaming & lifestyle streamer",
     isDefault: true,
-    channelId: "UCsvVMHo3kb3zC_gYLn_IpkQ"
+    channelId: "UCDRfljH48C4vwCPF8N8V8Hg"
   },
   {
     id: "@noobiegmk",
@@ -79,11 +79,11 @@ export const INITIAL_DEFAULT_CHANNELS = [
   {
     id: "@dsdsds19",
     handle: "@dsdsds19",
-    name: "បងធីខេ Bong TK",
+    name: "ds - ឌីអេស",
     category: "Khmer Streamer",
-    description: "Magic Chess & live gaming",
+    description: "Live gaming & entertainment streams",
     isDefault: true,
-    channelId: "UCoM0QAYjxSNcDR-2TnnYvkA"
+    channelId: "UCsvVMHo3kb3zC_gYLn_IpkQ"
   },
   {
     id: "@ravenblaze99",
@@ -110,10 +110,27 @@ export function getSavedChannels() {
     const saved = localStorage.getItem(STORAGE_KEY_CHANNELS);
     if (saved) {
       const parsed = JSON.parse(saved);
-      const map = new Map();
-      INITIAL_DEFAULT_CHANNELS.forEach(ch => map.set(ch.handle.toLowerCase(), ch));
-      parsed.forEach(ch => map.set(ch.handle.toLowerCase(), ch));
-      return Array.from(map.values());
+      const seen = new Set();
+      const result = [];
+
+      // Keep default channels synced with latest default configuration
+      INITIAL_DEFAULT_CHANNELS.forEach(def => {
+        seen.add(def.handle.toLowerCase());
+        result.push({ ...def });
+      });
+
+      // Preserve any custom user-added channels
+      if (Array.isArray(parsed)) {
+        parsed.forEach(ch => {
+          const handleLower = (ch.handle || ch.id || '').toLowerCase();
+          if (handleLower && !seen.has(handleLower)) {
+            seen.add(handleLower);
+            result.push(ch);
+          }
+        });
+      }
+
+      return result;
     }
   } catch (e) {
     console.error('Error loading channels from storage', e);

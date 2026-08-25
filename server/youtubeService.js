@@ -12,10 +12,10 @@ const KNOWN_CHANNEL_IDS = {
   '@lyvisss': 'UCymNvh7IQDkL1TLi3FdgIUQ',
   '@pechannie': 'UC8gLykz6r56Pk-buHS48S-w',
   '@knoy95tv': 'UC-9oxn3YNVIpHABvt_eaXrA',
-  '@khmergamer': 'UC6Qvs3rKLF2IA1TVEeHn08Q',
-  '@mrkmav': 'UCsvVMHo3kb3zC_gYLn_IpkQ',
+  '@khmergamer': 'UCoM0QAYjxSNcDR-2TnnYvkA',
+  '@mrkmav': 'UCDRfljH48C4vwCPF8N8V8Hg',
   '@noobiegmk': 'UCIw1B8cZ1o3PP1QMvSRG4_w',
-  '@dsdsds19': 'UCoM0QAYjxSNcDR-2TnnYvkA',
+  '@dsdsds19': 'UCsvVMHo3kb3zC_gYLn_IpkQ',
   '@ravenblaze99': 'UCnFLGRAn6jXrGDksCO1jEkA',
   '@kaka42official': 'UC--FHdN6cMHEYLjrYkvY8dQ',
   '@lofigirl': 'UCSJ4gkVC6NrvII8umztf0Ow'

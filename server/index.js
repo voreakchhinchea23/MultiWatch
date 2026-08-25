@@ -57,11 +57,11 @@ const DEFAULT_INITIAL_CHANNELS = [
   {
     id: "@KhmerGamer",
     handle: "@KhmerGamer",
-    name: "Khmer Gamer",
+    name: "Bong TK",
     category: "Gaming",
-    description: "Survival gaming, 7 Days to Die & adventures",
+    description: "Magic Chess, Mobile Legends & live gaming",
     isDefault: true,
-    channelId: "UC6Qvs3rKLF2IA1TVEeHn08Q"
+    channelId: "UCoM0QAYjxSNcDR-2TnnYvkA"
   },
   {
     id: "@MrKmav",
@@ -70,7 +70,7 @@ const DEFAULT_INITIAL_CHANNELS = [
     category: "Entertainment",
     description: "Khmer gaming & lifestyle streamer",
     isDefault: true,
-    channelId: "UCsvVMHo3kb3zC_gYLn_IpkQ"
+    channelId: "UCDRfljH48C4vwCPF8N8V8Hg"
   },
   {
     id: "@noobiegmk",
@@ -84,11 +84,11 @@ const DEFAULT_INITIAL_CHANNELS = [
   {
     id: "@dsdsds19",
     handle: "@dsdsds19",
-    name: "Bong TK (dsdsds19)",
+    name: "ds - ឌីអេស",
     category: "Gaming",
-    description: "Magic Chess, Mobile Legends & live gaming",
+    description: "Live gaming & entertainment streams",
     isDefault: true,
-    channelId: "UCoM0QAYjxSNcDR-2TnnYvkA"
+    channelId: "UCsvVMHo3kb3zC_gYLn_IpkQ"
   },
   {
     id: "@ravenblaze99",
